@@ -23,5 +23,6 @@ int test_arena(void);
 int test_memtable(void);
 int test_bitmap(void);
 int test_platform(void);
+int test_concurrent(void);
 
 #endif /* VDC_TESTS_H */

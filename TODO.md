@@ -45,6 +45,14 @@ Legend: [x] done | [ ] to do | (P#) = problem number in `memory and cache relate
 - [x] Scripts: setup_hugepages.sh, perf_counters.sh, run_bench.sh (one command for everything), plot_results.py (pivot tables from CSV)
 - [x] Makefile: `make` builds lib, tests, vdc_bench, experiments; `make bench`, `make experiments`; README.md with the Linux run guide
 
+### Multithreaded designs (built and tested on macOS, not run on Linux yet)
+- [x] Node layout: the 5 reserved bytes are now `lock` (1 B, node-lock mode) and `version` (4 B, seqlock); still 64 B
+- [x] Direct thread-safe memtables (concurrent.h): mutex, striped spinlocks, striped RW locks, per-node lock, seqlock (lock-free reads)
+- [x] Lock-free bounded queues (queue.h): Vyukov MPMC ring + MPSC pop, 64 B cells
+- [x] Delegation service (service.h): MPSC (1 owner), sharded MPSC queues per key-range owner, shared MPMC queue with forwarding; sync and async producers
+- [x] Unit tests: queue exactly-once with 4+4 threads, no torn reads under hot-key contention for all 5 locking modes, service results / ownership / per-owner order; passes under ThreadSanitizer (`make tsan`)
+- [x] vdc_mtbench + scripts/run_mt_bench.sh + CONCURRENCY.md; smoke run on macOS: all 11 designs correct (0 torn reads, 0 wrong statuses)
+
 ## To do
 
 ### Next: run on Linux
@@ -81,7 +89,9 @@ Legend: [x] done | [ ] to do | (P#) = problem number in `memory and cache relate
 - [ ] P5-P10, P19: "proposed, to confirm" items from the review; turn each into a decision
 
 ### Deferred (later)
-- [ ] Concurrency: false sharing, hot keys, shared counters, atomics, torn reads, bitmap contention (P20-P25, T9)
+- [ ] Run vdc_mtbench on Linux and analyse: scaling, hot keys (P22), shared counters avoided by design (P23), atomics cost (P24), torn reads checked (P25), VDC scatter vs identity
+- [ ] `perf c2c` run for cache-line contention (HITM) on the best and worst designs
+- [ ] Bitmap contention (P20) once the bitmap is wired in
 - [ ] NUMA, memory bandwidth, first-touch page faults, swap/memory pressure, multi-Space interference (P26-P30)
 - [ ] Compaction strategy
 - [ ] Keys wider than 20 bits (T12)

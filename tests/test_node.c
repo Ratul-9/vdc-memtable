@@ -10,7 +10,8 @@ int test_node(void)
     CHECK(sizeof(Node) == 64);
     CHECK(alignof(Node) == 64);
     CHECK(offsetof(Node, key) == 0);
-    CHECK(offsetof(Node, reserved) == 3);
+    CHECK(offsetof(Node, lock) == 3);
+    CHECK(offsetof(Node, version) == 4);
     CHECK(offsetof(Node, seqno) == 8);
     CHECK(offsetof(Node, ext_off) == 16);
     CHECK(offsetof(Node, val_len) == 24);
@@ -26,8 +27,7 @@ int test_node(void)
     node_set_key(&n, 0xFFFFFFu); /* full 24 bits */
     CHECK(node_get_key(&n) == 0xFFFFFFu);
 
-    /* The key must not touch the reserved bytes. */
-    for (int i = 0; i < 5; i++)
-        CHECK(n.reserved[i] == 0);
+    /* The key must not touch the lock byte or the version. */
+    CHECK(n.lock == 0 && n.version == 0);
     return 0;
 }

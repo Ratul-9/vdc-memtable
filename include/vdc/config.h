@@ -19,6 +19,12 @@
  */
 #define VDC_PREFETCH_DISTANCE 16u
 
+/*
+ * Striped locks of the concurrent memtables: one lock per 2^VDC_STRIPE_SHIFT
+ * slots (6 = 64 Nodes = 4 KiB of Nodes per lock, 16384 locks of 64 B = 1 MiB).
+ */
+#define VDC_STRIPE_SHIFT 6u
+
 /* Size of one huge page in the hugetlb pool. */
 #define VDC_HUGE_PAGE_SIZE ((size_t)2 * 1024 * 1024)
 

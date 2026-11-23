@@ -50,6 +50,19 @@ int vdc_hugetlb_supported(void);
 /* "base" or "hugetlb". */
 const char *vdc_page_mode_name(VdcPageMode mode);
 
+/* Pin the calling thread to one CPU. 0 on success, -1 if unsupported (non-Linux) or failed. */
+int vdc_pin_thread(int cpu);
+
+/* Spin-wait hint (x86 PAUSE, ARM YIELD). */
+static inline void vdc_cpu_relax(void)
+{
+#if defined(__x86_64__) || defined(__i386__)
+    __builtin_ia32_pause();
+#elif defined(__aarch64__) || defined(__arm__)
+    __asm__ __volatile__("yield");
+#endif
+}
+
 /* Software prefetch of the cache line holding p, for reading / for writing. */
 static inline void vdc_prefetch_r(const void *p) { __builtin_prefetch(p, 0, 3); }
 static inline void vdc_prefetch_w(const void *p) { __builtin_prefetch(p, 1, 3); }

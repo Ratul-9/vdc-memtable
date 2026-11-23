@@ -28,6 +28,13 @@ size_t vdc_map_size(size_t bytes, VdcPageMode mode)
 
 int vdc_hugetlb_supported(void) { return 0; }
 
+/* Thread pinning is not available through POSIX (macOS has only affinity hints). */
+int vdc_pin_thread(int cpu)
+{
+    (void)cpu;
+    return -1;
+}
+
 const char *vdc_page_mode_name(VdcPageMode mode)
 {
     return mode == VDC_PAGES_HUGETLB ? "hugetlb" : "base";

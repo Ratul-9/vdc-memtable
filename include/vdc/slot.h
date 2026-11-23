@@ -7,7 +7,8 @@
  * Layout (offsets in bytes):
  *
  *    0  key[3]     u8[3] 20-bit key padded to 24 bits, little-endian
- *    3  reserved   u8[5] empty for now (must be zero)
+ *    3  lock       u8    per-node lock byte (concurrent node-lock mode), 0 = free
+ *    4  version    u32   per-node version for seqlock readers (even = stable)
  *    8  seqno      u64   write sequence number (newest version only)
  *   16  ext_off    u64   offset in the Space's value arena when the value does
  *                        not fit inline (valid only if NODE_F_EXTERNAL is set)
@@ -30,7 +31,6 @@
 #define VDC_NODE_SIZE        64u
 #define VDC_NODE_VALUE_BYTES 32u
 #define VDC_NODE_KEY_BYTES 3u      /* 20-bit key stored in 24 bits */
-#define VDC_NODE_RESERVED_BYTES 5u /* unused, kept zero */
 
 #define NODE_F_OCCUPIED (1u << 0) /* slot holds a live entry */
 #define NODE_F_TOMBSTONE (1u << 1) /* entry is a delete marker */
@@ -38,7 +38,8 @@
 
 typedef struct Node {
     alignas(VDC_NODE_SIZE) uint8_t key[VDC_NODE_KEY_BYTES]; /* alignas: whole Node on a 64 B boundary */
-    uint8_t reserved[VDC_NODE_RESERVED_BYTES];
+    uint8_t lock;     /* used only by the concurrent memtables (CM_NODELOCK) */
+    uint32_t version; /* used only by the concurrent memtables (CM_SEQLOCK) */
     uint64_t seqno;
     uint64_t ext_off;
     uint32_t val_len;
@@ -48,7 +49,8 @@ typedef struct Node {
 
 _Static_assert(sizeof(Node) == VDC_NODE_SIZE, "Node must be exactly 64 bytes");
 _Static_assert(alignof(Node) == VDC_NODE_SIZE, "Node must be 64 B aligned");
-_Static_assert(offsetof(Node, reserved) == 3, "reserved must start at offset 3");
+_Static_assert(offsetof(Node, lock) == 3, "lock must be at offset 3");
+_Static_assert(offsetof(Node, version) == 4, "version must be at offset 4 (4-byte aligned)");
 _Static_assert(offsetof(Node, seqno) == 8, "seqno must start at offset 8");
 _Static_assert(offsetof(Node, ext_off) == 16, "ext_off must start at offset 16");
 _Static_assert(offsetof(Node, val_len) == 24, "val_len must start at offset 24");

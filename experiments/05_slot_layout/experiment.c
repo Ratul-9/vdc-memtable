@@ -21,7 +21,8 @@ int main(void)
     printf("# Experiment 05: Node layout\n\n");
     printf("| Field | Offset | Size | Purpose |\n|---|---:|---:|---|\n");
     printf("| key | %zu | %zu B | 20-bit key stored in 24 bits |\n", offsetof(Node, key), sizeof(((Node *)0)->key));
-    printf("| reserved | %zu | %zu B | empty, kept zero |\n", offsetof(Node, reserved), sizeof(((Node *)0)->reserved));
+    printf("| lock | %zu | %zu B | per-node lock byte (concurrent node-lock mode) |\n", offsetof(Node, lock), sizeof(((Node *)0)->lock));
+    printf("| version | %zu | %zu B | per-node version for seqlock readers |\n", offsetof(Node, version), sizeof(((Node *)0)->version));
     printf("| seqno | %zu | %zu B | write sequence number |\n", offsetof(Node, seqno), sizeof(((Node *)0)->seqno));
     printf("| ext_off | %zu | %zu B | arena offset of a value > 32 B |\n", offsetof(Node, ext_off),
            sizeof(((Node *)0)->ext_off));

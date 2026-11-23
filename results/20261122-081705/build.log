@@ -1,0 +1,55 @@
+cc -std=c11 -D_GNU_SOURCE -Wall -Wextra -Iinclude -Ibench -Ibaselines -Itests  -O2 -MMD -MP -c src/arena.c -o build/src/arena.o
+cc -std=c11 -D_GNU_SOURCE -Wall -Wextra -Iinclude -Ibench -Ibaselines -Itests  -O2 -MMD -MP -c src/bitmap.c -o build/src/bitmap.o
+cc -std=c11 -D_GNU_SOURCE -Wall -Wextra -Iinclude -Ibench -Ibaselines -Itests  -O2 -MMD -MP -c src/memtable.c -o build/src/memtable.o
+cc -std=c11 -D_GNU_SOURCE -Wall -Wextra -Iinclude -Ibench -Ibaselines -Itests  -O2 -MMD -MP -c src/platform_linux.c -o build/src/platform_linux.o
+cc -std=c11 -D_GNU_SOURCE -Wall -Wextra -Iinclude -Ibench -Ibaselines -Itests  -O2 -MMD -MP -c src/platform_posix.c -o build/src/platform_posix.o
+cc -std=c11 -D_GNU_SOURCE -Wall -Wextra -Iinclude -Ibench -Ibaselines -Itests  -O2 -MMD -MP -c src/vdc.c -o build/src/vdc.o
+cc -std=c11 -D_GNU_SOURCE -Wall -Wextra -Iinclude -Ibench -Ibaselines -Itests  -O2 -MMD -MP -c src/vdc_space.c -o build/src/vdc_space.o
+ar rcs build/libvdc.a build/src/arena.o build/src/bitmap.o build/src/memtable.o build/src/platform_linux.o build/src/platform_posix.o build/src/vdc.o build/src/vdc_space.o
+cc -std=c11 -D_GNU_SOURCE -Wall -Wextra -Iinclude -Ibench -Ibaselines -Itests  -O2 -MMD -MP -c tests/test_arena.c -o build/tests/test_arena.o
+cc -std=c11 -D_GNU_SOURCE -Wall -Wextra -Iinclude -Ibench -Ibaselines -Itests  -O2 -MMD -MP -c tests/test_bitmap.c -o build/tests/test_bitmap.o
+cc -std=c11 -D_GNU_SOURCE -Wall -Wextra -Iinclude -Ibench -Ibaselines -Itests  -O2 -MMD -MP -c tests/test_main.c -o build/tests/test_main.o
+cc -std=c11 -D_GNU_SOURCE -Wall -Wextra -Iinclude -Ibench -Ibaselines -Itests  -O2 -MMD -MP -c tests/test_memtable.c -o build/tests/test_memtable.o
+cc -std=c11 -D_GNU_SOURCE -Wall -Wextra -Iinclude -Ibench -Ibaselines -Itests  -O2 -MMD -MP -c tests/test_node.c -o build/tests/test_node.o
+cc -std=c11 -D_GNU_SOURCE -Wall -Wextra -Iinclude -Ibench -Ibaselines -Itests  -O2 -MMD -MP -c tests/test_partial_reversal.c -o build/tests/test_partial_reversal.o
+cc -std=c11 -D_GNU_SOURCE -Wall -Wextra -Iinclude -Ibench -Ibaselines -Itests  -O2 -MMD -MP -c tests/test_platform.c -o build/tests/test_platform.o
+cc -std=c11 -D_GNU_SOURCE -Wall -Wextra -Iinclude -Ibench -Ibaselines -Itests  -O2 -MMD -MP -c tests/test_vdc_bijection.c -o build/tests/test_vdc_bijection.o
+cc -std=c11 -D_GNU_SOURCE -Wall -Wextra -Iinclude -Ibench -Ibaselines -Itests  -O2 -MMD -MP -c tests/test_vdc_space.c -o build/tests/test_vdc_space.o
+cc -std=c11 -D_GNU_SOURCE -Wall -Wextra -Iinclude -Ibench -Ibaselines -Itests  -O2 build/tests/test_arena.o build/tests/test_bitmap.o build/tests/test_main.o build/tests/test_memtable.o build/tests/test_node.o build/tests/test_partial_reversal.o build/tests/test_platform.o build/tests/test_vdc_bijection.o build/tests/test_vdc_space.o build/libvdc.a -o build/test_runner
+cc -std=c11 -D_GNU_SOURCE -Wall -Wextra -Iinclude -Ibench -Ibaselines -Itests  -O2 -MMD -MP -c bench/bench_common.c -o build/bench/bench_common.o
+cc -std=c11 -D_GNU_SOURCE -Wall -Wextra -Iinclude -Ibench -Ibaselines -Itests  -O2 -MMD -MP -c bench/bench_hash.c -o build/bench/bench_hash.o
+cc -std=c11 -D_GNU_SOURCE -Wall -Wextra -Iinclude -Ibench -Ibaselines -Itests  -O2 -MMD -MP -c bench/bench_main.c -o build/bench/bench_main.o
+bench/bench_main.c: In function ‘fmt_keys.constprop’:
+bench/bench_main.c:452:25: warning: ‘%llu’ directive output may be truncated writing between 1 and 17 bytes into a region of size 16 [-Wformat-truncation=]
+  452 |         snprintf(b, n, "%lluK", (unsigned long long)(k / 1000));
+      |                         ^~~~
+bench/bench_main.c:452:24: note: directive argument in the range [1, 18446744073709551]
+  452 |         snprintf(b, n, "%lluK", (unsigned long long)(k / 1000));
+      |                        ^~~~~~~
+In file included from /usr/include/stdio.h:894,
+                 from bench/bench_main.c:23:
+/usr/include/x86_64-linux-gnu/bits/stdio2.h:71:10: note: ‘__builtin___snprintf_chk’ output between 3 and 19 bytes into a destination of size 16
+   71 |   return __builtin___snprintf_chk (__s, __n, __USE_FORTIFY_LEVEL - 1,
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   72 |                                    __glibc_objsize (__s), __fmt,
+      |                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   73 |                                    __va_arg_pack ());
+      |                                    ~~~~~~~~~~~~~~~~~
+cc -std=c11 -D_GNU_SOURCE -Wall -Wextra -Iinclude -Ibench -Ibaselines -Itests  -O2 -MMD -MP -c bench/bench_scan_flush.c -o build/bench/bench_scan_flush.o
+cc -std=c11 -D_GNU_SOURCE -Wall -Wextra -Iinclude -Ibench -Ibaselines -Itests  -O2 -MMD -MP -c bench/bench_skiplist.c -o build/bench/bench_skiplist.o
+cc -std=c11 -D_GNU_SOURCE -Wall -Wextra -Iinclude -Ibench -Ibaselines -Itests  -O2 -MMD -MP -c bench/bench_vdc.c -o build/bench/bench_vdc.o
+cc -std=c11 -D_GNU_SOURCE -Wall -Wextra -Iinclude -Ibench -Ibaselines -Itests  -O2 -MMD -MP -c baselines/hash_table.c -o build/baselines/hash_table.o
+cc -std=c11 -D_GNU_SOURCE -Wall -Wextra -Iinclude -Ibench -Ibaselines -Itests  -O2 -MMD -MP -c baselines/identity_table.c -o build/baselines/identity_table.o
+cc -std=c11 -D_GNU_SOURCE -Wall -Wextra -Iinclude -Ibench -Ibaselines -Itests  -O2 -MMD -MP -c baselines/skiplist.c -o build/baselines/skiplist.o
+cc -std=c11 -D_GNU_SOURCE -Wall -Wextra -Iinclude -Ibench -Ibaselines -Itests  -O2 build/bench/bench_common.o build/bench/bench_hash.o build/bench/bench_main.o build/bench/bench_scan_flush.o build/bench/bench_skiplist.o build/bench/bench_vdc.o build/baselines/hash_table.o build/baselines/identity_table.o build/baselines/skiplist.o build/libvdc.a -o build/vdc_bench
+cc -std=c11 -D_GNU_SOURCE -Wall -Wextra -Iinclude -Ibench -Ibaselines -Itests  -O2 -MMD -MP -c experiments/01_bijection_check/experiment.c -o build/experiments/01_bijection_check/experiment.o
+cc -std=c11 -D_GNU_SOURCE -Wall -Wextra -Iinclude -Ibench -Ibaselines -Itests  -O2 build/experiments/01_bijection_check/experiment.o build/bench/bench_common.o build/libvdc.a -o build/exp_01_bijection_check
+cc -std=c11 -D_GNU_SOURCE -Wall -Wextra -Iinclude -Ibench -Ibaselines -Itests  -O2 -MMD -MP -c experiments/02_partial_reversal_j_sweep/experiment.c -o build/experiments/02_partial_reversal_j_sweep/experiment.o
+cc -std=c11 -D_GNU_SOURCE -Wall -Wextra -Iinclude -Ibench -Ibaselines -Itests  -O2 build/experiments/02_partial_reversal_j_sweep/experiment.o build/bench/bench_common.o build/libvdc.a -o build/exp_02_partial_reversal_j_sweep
+cc -std=c11 -D_GNU_SOURCE -Wall -Wextra -Iinclude -Ibench -Ibaselines -Itests  -O2 -MMD -MP -c experiments/04_prefetch_batching/experiment.c -o build/experiments/04_prefetch_batching/experiment.o
+cc -std=c11 -D_GNU_SOURCE -Wall -Wextra -Iinclude -Ibench -Ibaselines -Itests  -O2 build/experiments/04_prefetch_batching/experiment.o build/bench/bench_common.o build/libvdc.a -o build/exp_04_prefetch_batching
+cc -std=c11 -D_GNU_SOURCE -Wall -Wextra -Iinclude -Ibench -Ibaselines -Itests  -O2 -MMD -MP -c experiments/05_slot_layout/experiment.c -o build/experiments/05_slot_layout/experiment.o
+cc -std=c11 -D_GNU_SOURCE -Wall -Wextra -Iinclude -Ibench -Ibaselines -Itests  -O2 build/experiments/05_slot_layout/experiment.o build/bench/bench_common.o build/libvdc.a -o build/exp_05_slot_layout
+cc -std=c11 -D_GNU_SOURCE -Wall -Wextra -Iinclude -Ibench -Ibaselines -Itests  -O2 -MMD -MP -c experiments/06_fill_and_rotation/experiment.c -o build/experiments/06_fill_and_rotation/experiment.o
+cc -std=c11 -D_GNU_SOURCE -Wall -Wextra -Iinclude -Ibench -Ibaselines -Itests  -O2 build/experiments/06_fill_and_rotation/experiment.o build/bench/bench_common.o build/libvdc.a -o build/exp_06_fill_and_rotation
+rm build/experiments/04_prefetch_batching/experiment.o build/experiments/02_partial_reversal_j_sweep/experiment.o build/experiments/06_fill_and_rotation/experiment.o build/experiments/05_slot_layout/experiment.o build/experiments/01_bijection_check/experiment.o

@@ -16,6 +16,7 @@ static const TestCase tests[] = {
     {"memtable", test_memtable},
     {"bitmap", test_bitmap},
     {"platform", test_platform},
+    {"concurrent", test_concurrent},
 };
 
 int main(void)

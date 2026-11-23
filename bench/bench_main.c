@@ -466,7 +466,7 @@ static void fmt_value(char *b, size_t n, int m, double v)
 
 static void fmt_where(char *b, size_t n, const Result *r)
 {
-    char kb[16];
+    char kb[32];
     fmt_keys(kb, sizeof(kb), r->keys);
     snprintf(b, n, "%s / %s / %s / %s / %s keys", page_names[r->mode], variants[r->variant].label,
              bench_pattern_names[r->pattern], bench_op_names[r->op], kb);
@@ -510,7 +510,7 @@ static void print_pivot(FILE *f, int mode, int pat, int op, int m)
     fprintf(f, "\n");
 
     for (int ki = 0; ki < opt.nkeys; ki++) {
-        char kb[16], vb[32];
+        char kb[32], vb[32];
         fmt_keys(kb, sizeof(kb), opt.keys[ki]);
         fprintf(f, "| %s |", kb);
         for (int vi = 0; vi < nvariants; vi++) {
@@ -534,7 +534,7 @@ static void print_config(FILE *f)
         fprintf(f, "%s %s", vi ? "," : "", variants[vi].label);
     fprintf(f, " |\n| Key counts |");
     for (int i = 0; i < opt.nkeys; i++) {
-        char kb[16];
+        char kb[32];
         fmt_keys(kb, sizeof(kb), opt.keys[i]);
         fprintf(f, "%s %s", i ? "," : "", kb);
     }
@@ -740,7 +740,7 @@ static void print_hugepages(FILE *f)
     if (opt.npages < 2)
         return;
     const uint64_t kmax = largest_keys();
-    char kb[16];
+    char kb[32];
     fmt_keys(kb, sizeof(kb), kmax);
     double a, b;
 
@@ -779,7 +779,7 @@ static void print_hugepages(FILE *f)
 static void print_best(FILE *f)
 {
     const uint64_t kmax = largest_keys();
-    char kb[16];
+    char kb[32];
     fmt_keys(kb, sizeof(kb), kmax);
     double v;
 
@@ -954,7 +954,7 @@ int main(int argc, char **argv)
                     const uint64_t t0 = bench_now_ns();
                     make_keys(opt.patterns[pi], (size_t)opt.keys[ki], opt.seed, ins, acc, miss, scratch, &k);
                     run_cell(im, t, mode, vi, opt.patterns[pi], &k, flush_buf, flush_bytes);
-                    char kb[16];
+                    char kb[32];
                     fmt_keys(kb, sizeof(kb), opt.keys[ki]);
                     fprintf(stderr, "[%s] %-12s %5s keys %-10s %.2f s\n", page_names[mode], variants[vi].label, kb,
                             bench_pattern_names[opt.patterns[pi]], (double)(bench_now_ns() - t0) / 1e9);

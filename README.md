@@ -16,11 +16,12 @@ and [memory and cache related problems.md](memory%20and%20cache%20related%20prob
 
 | Path | Contents |
 |---|---|
-| `include/vdc/` | `vdc.h` (key → slot), `slot.h` (Node), `vdc_space.h`, `arena.h`, `memtable.h`, `bitmap.h`, `platform.h`, `config.h` |
+| `include/vdc/` | `vdc.h` (key → slot), `slot.h` (Node), `vdc_space.h`, `arena.h`, `memtable.h`, `bitmap.h`, `platform.h`, `config.h`; concurrent: `concurrent.h`, `queue.h`, `service.h` |
 | `src/` | library sources (`platform_linux.c` on Linux, `platform_posix.c` elsewhere) |
 | `tests/` | unit tests (`make test`) |
 | `baselines/` | hash table (linear probing) and skip list with the same API semantics |
 | `bench/` | `vdc_bench` driver: timings + hardware counters, markdown tables, CSV |
+| `bench_mt/` | `vdc_mtbench` multithreaded driver (11 designs, threads, workloads, latency) |
 | `experiments/` | focused experiments 01–07, each with a README |
 | `scripts/` | Linux setup and run scripts |
 | `results/` | benchmark output (one folder per run) |
@@ -88,6 +89,21 @@ Rebuild pivot tables from a CSV, for example for one metric or to compare two ru
 ```bash
 scripts/plot_results.py results/<run>/results_vdc.csv --metric llc_miss_op --op get_hit
 ```
+
+## Multithreaded benchmarks
+
+Eleven concurrent designs: direct access with a global mutex, striped spinlocks, striped reader-writer locks, a
+per-node lock or a seqlock (lock-free reads), and delegation through lock-free queues to key-owning consumer threads
+(MPSC with one owner, sharded MPSC queues, one shared MPMC queue), each with synchronous or asynchronous producers.
+Design and test plan: [CONCURRENCY.md](CONCURRENCY.md).
+
+```bash
+scripts/run_mt_bench.sh
+```
+
+Output: `results/mt-<timestamp>/report_mt.md` (Checks, fastest design, scaling, VDC scatter vs identity, throughput
+and p50 / p99 / p99.9 latency per workload) and `results_mt.csv`. `make tsan` runs the unit tests under
+ThreadSanitizer.
 
 ## What is measured
 

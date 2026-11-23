@@ -8,6 +8,8 @@
 #include "vdc/platform.h"
 
 #include <errno.h>
+#include <pthread.h>
+#include <sched.h>
 #include <stdint.h>
 #include <sys/mman.h>
 #include <unistd.h>
@@ -37,6 +39,16 @@ size_t vdc_map_size(size_t bytes, VdcPageMode mode)
 }
 
 int vdc_hugetlb_supported(void) { return 1; }
+
+int vdc_pin_thread(int cpu)
+{
+    if (cpu < 0)
+        return -1;
+    cpu_set_t set;
+    CPU_ZERO(&set);
+    CPU_SET(cpu, &set);
+    return pthread_setaffinity_np(pthread_self(), sizeof(set), &set) == 0 ? 0 : -1;
+}
 
 const char *vdc_page_mode_name(VdcPageMode mode)
 {
