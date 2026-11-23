@@ -1,0 +1,52 @@
+== experiment 3: Key density: what on-demand rows save (budget 9.00 GiB)
+  10M dense keys: planned in 0.0 s
+  flat        10M dense     created + prepared in 1.1 s, process memory 0.60 GiB (plan 0.85)
+    rand insert       14.5 ns/op
+    rand get_hit      23.9 ns/op
+    rand get_miss     15.6 ns/op
+  rows-4K     10M dense     created + prepared in 0.2 s, process memory 0.61 GiB (plan 0.85)
+    rand insert       16.2 ns/op
+    rand get_hit      30.5 ns/op
+    rand get_miss     12.1 ns/op
+  rows-64K    10M dense     created + prepared in 0.2 s, process memory 0.60 GiB (plan 0.85)
+    rand insert       15.1 ns/op
+    rand get_hit      28.4 ns/op
+    rand get_miss     11.7 ns/op
+  rows-2M     10M dense     created + prepared in 0.2 s, process memory 0.60 GiB (plan 0.85)
+    rand insert       14.9 ns/op
+    rand get_hit      27.9 ns/op
+    rand get_miss     11.7 ns/op
+  10M clustered keys: planned in 0.1 s
+  flat        10M clustered created + prepared in 0.3 s, process memory 0.63 GiB (plan 0.88)
+    rand insert       26.6 ns/op
+    rand get_hit      40.6 ns/op
+    rand get_miss     24.5 ns/op
+  rows-4K     10M clustered created + prepared in 0.2 s, process memory 0.64 GiB (plan 0.88)
+    rand insert       29.1 ns/op
+    rand get_hit      49.1 ns/op
+    rand get_miss     24.6 ns/op
+  rows-64K    10M clustered created + prepared in 0.3 s, process memory 1.16 GiB (plan 1.40)
+    rand insert       27.6 ns/op
+    rand get_hit      47.4 ns/op
+    rand get_miss     27.0 ns/op
+  rows-2M     10M clustered created + prepared in 2.2 s, process memory 7.45 GiB (plan 7.69)
+    rand insert       27.1 ns/op
+    rand get_hit      45.4 ns/op
+    rand get_miss     37.7 ns/op
+  10M sparse keys: planned in 0.1 s
+  flat        10M sparse    created + prepared in 2.6 s, process memory 7.95 GiB (plan 8.20)
+    rand insert       20.0 ns/op
+    rand get_hit      42.5 ns/op
+    rand get_miss     35.3 ns/op
+  rows-4K     10M sparse    created + prepared in 2.3 s, process memory 7.96 GiB (plan 8.20)
+    rand insert       39.1 ns/op
+    rand get_hit      60.0 ns/op
+    rand get_miss     53.7 ns/op
+  rows-64K    10M sparse    created + prepared in 2.3 s, process memory 8.00 GiB (plan 8.25)
+    rand insert       25.1 ns/op
+    rand get_hit      50.5 ns/op
+    rand get_miss     42.6 ns/op
+  rows-2M     10M sparse    created + prepared in 2.3 s, process memory 8.00 GiB (plan 8.25)
+    rand insert       22.9 ns/op
+    rand get_hit      50.2 ns/op
+    rand get_miss     40.9 ns/op

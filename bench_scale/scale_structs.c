@@ -265,11 +265,13 @@ static uint64_t keygen_used(void *t)
     return 0;
 }
 
-/* Only computes the keys an insert pass would use: the cost included in every other number. */
+/* Only computes the keys an insert pass would use. Reported for information: this
+ * work happens between the measured sections of every other structure. */
 static void keygen_phase(void *t, int op, const PhaseIn *in, PhaseOut *out)
 {
     (void)t;
     uint64_t sum = 0, ops = 0;
+    const uint64_t t0 = bench_now_ns();
     const DatKeySet *ks = in->keys;
     const int rnd = (in->order == ORD_RAND);
     if (op == PH_INSERT) {
@@ -277,6 +279,8 @@ static void keygen_phase(void *t, int op, const PhaseIn *in, PhaseOut *out)
             sum += dat_key(ks, rnd ? dat_perm(in->ord, i) : i);
         ops = ks->n;
     }
+    memset(&out->rd, 0, sizeof(out->rd));
+    out->ns = bench_now_ns() - t0;
     out->ops = ops;
     out->sum = sum;
     out->ok = 1;

@@ -1,0 +1,11 @@
+[ ok ] vdc_bijection
+[ ok ] partial_reversal
+[ ok ] node
+[ ok ] vdc_space
+[ ok ] arena
+[ ok ] memtable
+[ ok ] bitmap
+[ ok ] platform
+[ ok ] concurrent
+[ ok ] dat
+10/10 tests passed

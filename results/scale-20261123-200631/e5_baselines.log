@@ -1,0 +1,50 @@
+== experiment 5: Baselines at scale (budget 9.00 GiB)
+  1M dense keys: planned in 0.0 s
+  hash         1M dense     created + prepared in 0.0 s, process memory 0.13 GiB (plan 0.38)
+    seq  insert       32.2 ns/op
+    seq  get_hit      32.6 ns/op
+    seq  get_miss     49.1 ns/op
+    seq  update       34.3 ns/op
+    rand insert       37.4 ns/op
+    rand get_hit      39.2 ns/op
+    rand get_miss     57.6 ns/op
+    rand update       38.9 ns/op
+  skiplist     1M dense     created + prepared in 0.0 s, process memory 0.09 GiB (plan 0.34)
+    seq  insert       73.7 ns/op
+    seq  get_hit      67.1 ns/op
+    seq  get_miss     15.9 ns/op
+    seq  update       69.4 ns/op
+    rand insert      575.9 ns/op
+    rand get_hit     730.0 ns/op
+    rand get_miss     58.9 ns/op
+    rand update      820.7 ns/op
+  10M dense keys: planned in 0.0 s
+  hash        10M dense     created + prepared in 0.3 s, process memory 1.00 GiB (plan 1.25)
+    seq  insert       42.5 ns/op
+    seq  get_hit      46.8 ns/op
+    seq  get_miss    103.1 ns/op
+    seq  update       52.0 ns/op
+    rand insert       54.7 ns/op
+    rand get_hit      59.0 ns/op
+    rand get_miss    118.1 ns/op
+    rand update       60.4 ns/op
+  skiplist    10M dense     created + prepared in 0.3 s, process memory 0.90 GiB (plan 1.14)
+    seq  insert       79.0 ns/op
+    seq  get_hit      68.4 ns/op
+    seq  get_miss     28.5 ns/op
+    seq  update       70.3 ns/op
+    rand insert     1444.1 ns/op
+    rand get_hit    1543.8 ns/op
+    rand get_miss     54.5 ns/op
+    rand update     1745.1 ns/op
+  25M dense keys: planned in 0.1 s
+  hash        25M dense     created + prepared in 0.6 s, process memory 2.00 GiB (plan 2.25)
+    seq  insert       66.8 ns/op
+    seq  get_hit      52.0 ns/op
+    seq  get_miss    185.4 ns/op
+    seq  update       58.6 ns/op
+    rand insert       75.9 ns/op
+    rand get_hit      59.9 ns/op
+    rand get_miss    194.8 ns/op
+    rand update       62.1 ns/op
+  skiplist    25M dense     skipped: skip list limited to 10000000 keys (run time)

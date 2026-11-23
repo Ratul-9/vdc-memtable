@@ -16,6 +16,9 @@
 #include "dat/dat_keys.h"
 #include "vdc/platform.h"
 
+/* Keys are computed in batches of this many (16 KB buffer) outside the measured sections. */
+#define SCALE_CHUNK 4096
+
 enum { S_FLAT, S_ROWS, S_HASH, S_SKIPLIST, S_KEYGEN, S_KIND_COUNT };
 enum { PH_INSERT, PH_GET_HIT, PH_GET_MISS, PH_UPDATE, PH_COUNT };
 enum { ORD_SEQ, ORD_RAND, ORD_COUNT };
@@ -34,10 +37,14 @@ typedef struct PhaseIn {
     const DatPerm *ord_miss; /* random order over 0 .. n_miss-1 */
     uint64_t m;            /* get_hit / update operations */
     uint64_t m_miss;       /* get_miss operations */
+    Perf *perf;            /* hardware counters, or NULL */
+    int perf_set;          /* counter group to measure, -1 = none */
 } PhaseIn;
 
 typedef struct PhaseOut {
     uint64_t ops;
+    uint64_t ns;           /* measured time: structure operations only */
+    PerfReading rd;        /* counters summed over the measured sections */
     uint64_t sum;
     int ok;
 } PhaseOut;

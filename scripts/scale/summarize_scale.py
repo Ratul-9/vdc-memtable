@@ -147,9 +147,15 @@ def main():
             b = pick(ran, structure=s, page_mode="base", pattern="dense", order="rand", keys=str(k), op="get_hit")
             if h is None:
                 continue
-            dt = lambda r: (val(r, "dtlb_load_miss_op") or 0) + (val(r, "dtlb_store_miss_op") or 0) if r else None
+            def dt(r):
+                if r is None:
+                    return None
+                a, b = val(r, "dtlb_load_miss_op"), val(r, "dtlb_store_miss_op")
+                if a is None and b is None:
+                    return None  # counter group not measured
+                return (a or 0) + (b or 0)
             body.append([keys_label(k), s, fmt(val(b, "ns_op")) if b else "-", fmt(val(h, "ns_op")),
-                         fmt(dt(b), 3) if b else "-", fmt(dt(h), 3)])
+                         fmt(dt(b), 3), fmt(dt(h), 3)])
     if body:
         table("4. Huge pages vs base pages: get_hit, dense keys, random order",
               ["keys", "structure", "base ns", "hugetlb ns", "base dTLB/op", "hugetlb dTLB/op"], body)

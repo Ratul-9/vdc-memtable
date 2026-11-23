@@ -4,7 +4,7 @@
 #   scripts/scale/run_scale.sh [--quick] [--budget-gib 9] [--phase base|huge|all] [--cpu 2]
 #                              [--max-keys 100M] [--skiplist-max 10M] [--reps 3]
 #
-#   --quick          smaller sizes (1M,10M,25M; density at 10M; huge pages at 10M) and 2 repetitions
+#   --quick          smaller sizes (1M,10M,25M; density at 10M; huge pages at 10M)
 #   --budget-gib X   program + structure memory limit (default 9; 10 is the absolute maximum)
 #   --phase          base = experiments 1, 2, 3, 5 on normal pages
 #                    huge = experiment 4 on 2 MiB pages (reserves a pool with sudo, frees it after)
@@ -33,7 +33,7 @@ while [[ $# -gt 0 ]]; do
         --cpu) CPU="$2"; shift ;;
         --max-keys) MAXKEYS="$2"; shift ;;
         --skiplist-max) SKIPMAX="$2"; shift ;;
-        --reps) REPS="$2"; shift ;;
+        --reps) REPS="$2"; shift ;;  # keep >= 3: each repetition measures one of the 3 counter groups
         -h|--help) sed -n '2,19p' "$0"; exit 0 ;;
         *) echo "unknown option: $1" >&2; exit 2 ;;
     esac
@@ -65,7 +65,7 @@ filter_keys() {
 }
 
 if (( QUICK )); then
-    KEYS_MAIN="1M,10M,25M"; KEYS_DENSITY="10M"; KEYS_HUGE="10M"; REPS=2
+    KEYS_MAIN="1M,10M,25M"; KEYS_DENSITY="10M"; KEYS_HUGE="10M"; REPS=3 # 3 = every counter group measured once
 else
     KEYS_MAIN="1M,10M,25M,50M,75M,100M"; KEYS_DENSITY="10M,100M"; KEYS_HUGE="10M,50M,100M"
 fi

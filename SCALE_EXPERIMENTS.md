@@ -55,7 +55,8 @@ To see what would run and how much memory each piece needs, without allocating a
 | 5 | baselines | Do the hash table and skip list keep up at scale? | hash table, skip list (≤ 10M) | 1M … 100M | dense | seq, rand |
 
 - **Operations:** insert (every key), get_hit, get_miss (keys never written), update. Experiment 3 has no update.
-- **Measurement:** 3 repetitions. Each repetition measures one group of hardware counters.
+- **Measurement:** 3 repetitions (also in `--quick`). Each repetition measures one of the 3 hardware counter groups,
+  so fewer than 3 repetitions would leave some counters unmeasured.
 - **Counters:** time, instructions, L1 misses, LLC misses and TLB misses per operation.
 - **Gets and updates** use min(keys, 20M) operations.
 - **Row sizes and where the row table lives** (2^27 key range, 4 bytes per entry):
@@ -92,7 +93,8 @@ memory is ever measured above it, the program stops at once.
 2. **One structure.** Only one exists at a time. It is created, measured, and destroyed before the next one is
    created. Nothing else ever runs alongside it: the script starts one experiment after another, never two together.
 3. **No key lists.** Instead of storing 100M keys (which would cost about 1.6 GB), "the i-th key" is computed when
-   needed with a reversible scramble formula. That costs about 1 ns per key and is reported, so it can be subtracted.
+   needed with a reversible scramble formula. Keys are computed 4,096 at a time into a 16 KB buffer, outside the
+   measured sections, so the measurements contain only the structure's work.
 
 ### How each structure uses memory
 
@@ -182,8 +184,11 @@ take hours.
 7. **Misses on the flat array are slow when keys are dense.** The absent keys lie across the rest of the 8 GiB range,
    on pages that are never used, so every miss costs a page-table walk. The rows layout answers such a miss from its
    table without touching data. This is a real difference between the layouts, not a measurement error.
-8. **Key generation is included in every time** (about 0.5–1 ns for dense keys, more for clustered). It is reported
-   separately.
+8. **Key generation is not in the measurements.** Keys are computed in batches of 4,096 (a 16 KB buffer that stays
+   in L1) between measured sections. The timer and hardware counters run only while the structure is being used.
+   Reading the buffer adds about 1/16 of an L1 miss per operation. Fixed after the first quick run
+   (`results/scale-20261123-200631/analysis.md`), where key generation had added 9–24 ns per operation and made the
+   O(1) check fail falsely.
 9. **Run time:** expect a few hours for the full run (estimate, not measured). `--quick` is much shorter.
 10. **One machine.** Pin the CPU (`--cpu`), keep the frequency fixed if possible, and watch for thermal throttling.
 11. **Experiment 6 (threads at 100M keys) is not built yet.** It needs a thread-safe row-creation step; the node

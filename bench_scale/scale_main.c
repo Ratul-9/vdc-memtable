@@ -360,21 +360,13 @@ static void run_structure(int si, const DatKeySet *ks, const ScalePlan *plan, co
                     continue;
                 if (op == PH_GET_MISS && (skip_miss || m_miss == 0))
                     continue;
-                PhaseIn in = {ks, order, ord, ord_miss, m, m_miss};
+                PhaseIn in = {ks, order, ord, ord_miss, m, m_miss, &perf, set};
                 PhaseOut out;
-                PerfReading rd;
-                if (set >= 0)
-                    perf_start(&perf, set);
-                const uint64_t t0 = bench_now_ns();
-                ops->phase(t, op, &in, &out);
-                const uint64_t t1 = bench_now_ns();
-                if (set >= 0)
-                    perf_stop(&perf, set, &rd);
-                else
-                    memset(&rd, 0, sizeof(rd));
+                ops->phase(t, op, &in, &out); /* times and counts only the structure work */
+                const PerfReading rd = out.rd;
                 if (out.ops == 0)
                     continue;
-                tns[op][nt[op]++] = (double)(t1 - t0) / (double)out.ops;
+                tns[op][nt[op]++] = (double)out.ns / (double)out.ops;
                 for (int ev = 0; ev < PC_COUNT; ev++)
                     if (rd.valid[ev])
                         ctr[op][ev][nc[op][ev]++] =
@@ -427,11 +419,10 @@ static void run_keygen(const DatKeySet *ks, const DatPerm *ord)
         const int order = E.orders[oi];
         double s[MAX_REPS];
         for (uint64_t rep = 0; rep < opt.reps; rep++) {
-            PhaseIn in = {ks, order, ord, ord, 0, 0};
+            PhaseIn in = {ks, order, ord, ord, 0, 0, NULL, -1};
             PhaseOut out;
-            const uint64_t t0 = bench_now_ns();
             ops->phase(NULL, PH_INSERT, &in, &out);
-            s[rep] = (double)(bench_now_ns() - t0) / (double)(out.ops ? out.ops : 1);
+            s[rep] = (double)out.ns / (double)(out.ops ? out.ops : 1);
         }
         keygen_ns[ks->pattern][order] = bench_median(s, opt.reps);
         keygen_done[ks->pattern][order] = 1;
@@ -567,9 +558,10 @@ static void print_report(void)
     fprintf(f, "| Clustered run length | %llu keys |\n", (unsigned long long)opt.run_len);
     fprintf(f, "\nPatterns: **dense** = keys 0 .. N-1; **clustered** = runs of %llu consecutive keys at random places; "
                "**sparse** = N random keys over the whole range. Orders: **seq** = in key-set order, **rand** = random "
-               "order. Keys are computed on the fly (a reversible scramble), so no key lists use memory; that "
-               "computation is included in every number (see \"Key generation cost\").\n",
-            (unsigned long long)opt.run_len);
+               "order. Keys are computed on the fly (a reversible scramble), so no key lists use memory. They are "
+               "computed in batches of %d outside the measured sections, so the times and counters below contain "
+               "only the structure work.\n",
+            (unsigned long long)opt.run_len, SCALE_CHUNK);
 
     /* Memory plan */
     fprintf(f, "\n## Memory plan\n\nComputed before anything was allocated. Memory = structure + %llu MiB for the "
@@ -648,7 +640,9 @@ static void print_report(void)
             peak_measured <= budget_bytes ? "✅ PASS" : "⚠️ above budget (below hard limit)", gib(peak_measured));
 
     /* Key generation */
-    fprintf(f, "\n## Key generation cost (included in every time below)\n\n| pattern |");
+    fprintf(f, "\n## Key generation cost (NOT included in the measurements)\n\nKeys are computed in batches of "
+               "%d between measured sections; the timer and counters see only the structure work. For information, "
+               "computing a key costs:\n\n| pattern |", SCALE_CHUNK);
     for (int oi = 0; oi < E.norders; oi++)
         fprintf(f, " %s ns/key |", order_names[E.orders[oi]]);
     fprintf(f, "\n|---|");
@@ -841,8 +835,12 @@ int main(int argc, char **argv)
         vdc_unmap(p, VDC_HUGE_PAGE_SIZE, VDC_PAGES_HUGETLB);
     }
 
-    if (opt.use_perf && !opt.plan_only && !opt.huge_needed)
+    if (opt.use_perf && !opt.plan_only && !opt.huge_needed) {
         perf_init(&perf, 1);
+        if (perf.nsets > (int)opt.reps)
+            fprintf(stderr, "warning: %llu repetitions but %d counter groups: use --reps %d to measure every group\n",
+                    (unsigned long long)opt.reps, perf.nsets, perf.nsets);
+    }
 
     const unsigned bits[4] = {page_row_bits(), 6, 10, 15};
     uint64_t huge_max = 0;
