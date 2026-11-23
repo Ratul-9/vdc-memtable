@@ -1,0 +1,31 @@
+== experiment 1: Flat array at scale (reference) (budget 9.00 GiB)
+  1M dense keys: planned in 0.0 s
+  flat         1M dense     created + prepared in 0.4 s, process memory 0.06 GiB (plan 0.31)
+    seq  insert        7.5 ns/op
+    seq  get_hit       4.5 ns/op
+    seq  get_miss     10.6 ns/op
+    seq  update        8.0 ns/op
+    rand insert       11.1 ns/op
+    rand get_hit      12.9 ns/op
+    rand get_miss     11.4 ns/op
+    rand update       12.5 ns/op
+  10M dense keys: planned in 0.0 s
+  flat        10M dense     created + prepared in 1.1 s, process memory 0.60 GiB (plan 0.85)
+    seq  insert        7.9 ns/op
+    seq  get_hit       4.4 ns/op
+    seq  get_miss      8.0 ns/op
+    seq  update        8.2 ns/op
+    rand insert       13.0 ns/op
+    rand get_hit      13.7 ns/op
+    rand get_miss      8.1 ns/op
+    rand update       13.3 ns/op
+  25M dense keys: planned in 0.1 s
+  flat        25M dense     created + prepared in 1.4 s, process memory 1.49 GiB (plan 1.74)
+    seq  insert        7.9 ns/op
+    seq  get_hit       4.4 ns/op
+    seq  get_miss      7.5 ns/op
+    seq  update        8.2 ns/op
+    rand insert       13.2 ns/op
+    rand get_hit      13.9 ns/op
+    rand get_miss      7.4 ns/op
+    rand update       13.5 ns/op

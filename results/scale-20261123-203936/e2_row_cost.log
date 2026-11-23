@@ -1,0 +1,223 @@
+== experiment 2: Cost of the row table (two-level vs flat) (budget 9.00 GiB)
+  1M dense keys: planned in 0.0 s
+  flat         1M dense     created + prepared in 0.4 s, process memory 0.06 GiB (plan 0.31)
+    seq  insert        7.6 ns/op
+    seq  get_hit       4.6 ns/op
+    seq  get_miss     10.5 ns/op
+    seq  update        8.0 ns/op
+    rand insert       11.1 ns/op
+    rand get_hit      13.3 ns/op
+    rand get_miss     11.3 ns/op
+    rand update       12.5 ns/op
+  rows-4K      1M dense     created + prepared in 0.0 s, process memory 0.07 GiB (plan 0.32)
+    seq  insert        7.4 ns/op
+    seq  get_hit       5.0 ns/op
+    seq  get_miss      2.6 ns/op
+    seq  update        7.9 ns/op
+    rand insert       10.9 ns/op
+    rand get_hit      18.4 ns/op
+    rand get_miss      2.8 ns/op
+    rand update       11.5 ns/op
+  rows-64K     1M dense     created + prepared in 0.0 s, process memory 0.06 GiB (plan 0.31)
+    seq  insert        6.6 ns/op
+    seq  get_hit       4.8 ns/op
+    seq  get_miss      1.0 ns/op
+    seq  update        7.2 ns/op
+    rand insert       11.1 ns/op
+    rand get_hit      16.9 ns/op
+    rand get_miss      1.1 ns/op
+    rand update       10.1 ns/op
+  rows-2M      1M dense     created + prepared in 0.0 s, process memory 0.06 GiB (plan 0.31)
+    seq  insert        6.9 ns/op
+    seq  get_hit       4.8 ns/op
+    seq  get_miss      0.9 ns/op
+    seq  update        7.1 ns/op
+    rand insert       11.1 ns/op
+    rand get_hit      16.8 ns/op
+    rand get_miss      0.9 ns/op
+    rand update       10.1 ns/op
+  10M dense keys: planned in 0.0 s
+  flat        10M dense     created + prepared in 1.1 s, process memory 0.60 GiB (plan 0.85)
+    seq  insert        7.9 ns/op
+    seq  get_hit       4.5 ns/op
+    seq  get_miss      8.0 ns/op
+    seq  update        8.2 ns/op
+    rand insert       13.0 ns/op
+    rand get_hit      14.2 ns/op
+    rand get_miss      8.1 ns/op
+    rand update       13.3 ns/op
+  rows-4K     10M dense     created + prepared in 0.2 s, process memory 0.61 GiB (plan 0.85)
+    seq  insert        7.9 ns/op
+    seq  get_hit       4.8 ns/op
+    seq  get_miss      1.4 ns/op
+    seq  update        8.3 ns/op
+    rand insert       13.4 ns/op
+    rand get_hit      21.4 ns/op
+    rand get_miss      1.4 ns/op
+    rand update       13.6 ns/op
+  rows-64K    10M dense     created + prepared in 0.2 s, process memory 0.60 GiB (plan 0.85)
+    seq  insert        7.9 ns/op
+    seq  get_hit       4.9 ns/op
+    seq  get_miss      1.0 ns/op
+    seq  update        8.3 ns/op
+    rand insert       13.0 ns/op
+    rand get_hit      20.7 ns/op
+    rand get_miss      1.0 ns/op
+    rand update       13.2 ns/op
+  rows-2M     10M dense     created + prepared in 0.2 s, process memory 0.60 GiB (plan 0.85)
+    seq  insert        7.9 ns/op
+    seq  get_hit       4.8 ns/op
+    seq  get_miss      0.9 ns/op
+    seq  update        8.3 ns/op
+    rand insert       13.0 ns/op
+    rand get_hit      19.1 ns/op
+    rand get_miss      0.9 ns/op
+    rand update       13.2 ns/op
+  25M dense keys: planned in 0.1 s
+  flat        25M dense     created + prepared in 1.4 s, process memory 1.49 GiB (plan 1.74)
+    seq  insert        7.9 ns/op
+    seq  get_hit       4.5 ns/op
+    seq  get_miss      7.5 ns/op
+    seq  update        8.2 ns/op
+    rand insert       13.2 ns/op
+    rand get_hit      14.5 ns/op
+    rand get_miss      7.4 ns/op
+    rand update       13.5 ns/op
+  rows-4K     25M dense     created + prepared in 0.4 s, process memory 1.50 GiB (plan 1.75)
+    seq  insert        8.0 ns/op
+    seq  get_hit       4.8 ns/op
+    seq  get_miss      1.3 ns/op
+    seq  update        8.4 ns/op
+    rand insert       13.9 ns/op
+    rand get_hit      22.7 ns/op
+    rand get_miss      1.3 ns/op
+    rand update       14.0 ns/op
+  rows-64K    25M dense     created + prepared in 0.4 s, process memory 1.49 GiB (plan 1.74)
+    seq  insert        7.9 ns/op
+    seq  get_hit       4.8 ns/op
+    seq  get_miss      1.0 ns/op
+    seq  update        8.3 ns/op
+    rand insert       13.4 ns/op
+    rand get_hit      20.6 ns/op
+    rand get_miss      1.0 ns/op
+    rand update       13.6 ns/op
+  rows-2M     25M dense     created + prepared in 0.4 s, process memory 1.49 GiB (plan 1.74)
+    seq  insert        7.9 ns/op
+    seq  get_hit       4.8 ns/op
+    seq  get_miss      0.8 ns/op
+    seq  update        8.3 ns/op
+    rand insert       13.3 ns/op
+    rand get_hit      19.6 ns/op
+    rand get_miss      0.9 ns/op
+    rand update       13.5 ns/op
+  50M dense keys: planned in 0.2 s
+  flat        50M dense     created + prepared in 1.9 s, process memory 2.98 GiB (plan 3.23)
+    seq  insert        7.9 ns/op
+    seq  get_hit       4.5 ns/op
+    seq  get_miss      6.8 ns/op
+    seq  update        8.2 ns/op
+    rand insert       13.4 ns/op
+    rand get_hit      15.1 ns/op
+    rand get_miss      6.8 ns/op
+    rand update       13.6 ns/op
+  rows-4K     50M dense     created + prepared in 0.9 s, process memory 2.99 GiB (plan 3.24)
+    seq  insert        8.0 ns/op
+    seq  get_hit       4.8 ns/op
+    seq  get_miss      1.2 ns/op
+    seq  update        8.3 ns/op
+    rand insert       14.3 ns/op
+    rand get_hit      24.4 ns/op
+    rand get_miss      1.2 ns/op
+    rand update       14.3 ns/op
+  rows-64K    50M dense     created + prepared in 0.9 s, process memory 2.98 GiB (plan 3.23)
+    seq  insert        7.9 ns/op
+    seq  get_hit       4.8 ns/op
+    seq  get_miss      1.0 ns/op
+    seq  update        8.3 ns/op
+    rand insert       13.7 ns/op
+    rand get_hit      21.8 ns/op
+    rand get_miss      0.9 ns/op
+    rand update       13.8 ns/op
+  rows-2M     50M dense     created + prepared in 0.9 s, process memory 2.98 GiB (plan 3.23)
+    seq  insert        8.0 ns/op
+    seq  get_hit       4.8 ns/op
+    seq  get_miss      0.8 ns/op
+    seq  update        8.4 ns/op
+    rand insert       13.5 ns/op
+    rand get_hit      20.1 ns/op
+    rand get_miss      0.8 ns/op
+    rand update       13.7 ns/op
+  75M dense keys: planned in 0.3 s
+  flat        75M dense     created + prepared in 2.0 s, process memory 4.47 GiB (plan 4.72)
+    seq  insert        7.9 ns/op
+    seq  get_hit       4.5 ns/op
+    seq  get_miss      6.3 ns/op
+    seq  update        8.2 ns/op
+    rand insert       13.6 ns/op
+    rand get_hit      17.6 ns/op
+    rand get_miss      6.1 ns/op
+    rand update       13.8 ns/op
+  rows-4K     75M dense     created + prepared in 1.3 s, process memory 4.48 GiB (plan 4.73)
+    seq  insert        7.9 ns/op
+    seq  get_hit       4.8 ns/op
+    seq  get_miss      1.2 ns/op
+    seq  update        8.3 ns/op
+    rand insert       15.4 ns/op
+    rand get_hit      29.0 ns/op
+    rand get_miss      1.1 ns/op
+    rand update       15.4 ns/op
+  rows-64K    75M dense     created + prepared in 1.3 s, process memory 4.47 GiB (plan 4.72)
+    seq  insert        7.9 ns/op
+    seq  get_hit       4.8 ns/op
+    seq  get_miss      0.9 ns/op
+    seq  update        8.3 ns/op
+    rand insert       13.9 ns/op
+    rand get_hit      24.1 ns/op
+    rand get_miss      0.9 ns/op
+    rand update       14.1 ns/op
+  rows-2M     75M dense     created + prepared in 1.3 s, process memory 4.47 GiB (plan 4.72)
+    seq  insert        7.9 ns/op
+    seq  get_hit       4.8 ns/op
+    seq  get_miss      0.8 ns/op
+    seq  update        8.3 ns/op
+    rand insert       13.7 ns/op
+    rand get_hit      22.1 ns/op
+    rand get_miss      0.8 ns/op
+    rand update       13.8 ns/op
+  100M dense keys: planned in 0.4 s
+  flat       100M dense     created + prepared in 2.4 s, process memory 5.96 GiB (plan 6.21)
+    seq  insert        7.9 ns/op
+    seq  get_hit       4.5 ns/op
+    seq  get_miss      5.7 ns/op
+    seq  update        8.2 ns/op
+    rand insert       14.0 ns/op
+    rand get_hit      19.3 ns/op
+    rand get_miss      5.7 ns/op
+    rand update       14.1 ns/op
+  rows-4K    100M dense     created + prepared in 1.7 s, process memory 5.97 GiB (plan 6.22)
+    seq  insert        7.9 ns/op
+    seq  get_hit       4.8 ns/op
+    seq  get_miss      1.1 ns/op
+    seq  update        8.3 ns/op
+    rand insert       17.7 ns/op
+    rand get_hit      32.7 ns/op
+    rand get_miss      1.1 ns/op
+    rand update       17.6 ns/op
+  rows-64K   100M dense     created + prepared in 1.7 s, process memory 5.96 GiB (plan 6.21)
+    seq  insert        7.9 ns/op
+    seq  get_hit       4.8 ns/op
+    seq  get_miss      0.9 ns/op
+    seq  update        8.3 ns/op
+    rand insert       14.4 ns/op
+    rand get_hit      26.3 ns/op
+    rand get_miss      0.9 ns/op
+    rand update       14.6 ns/op
+  rows-2M    100M dense     created + prepared in 1.7 s, process memory 5.96 GiB (plan 6.21)
+    seq  insert        7.9 ns/op
+    seq  get_hit       4.8 ns/op
+    seq  get_miss      0.9 ns/op
+    seq  update        8.3 ns/op
+    rand insert       14.2 ns/op
+    rand get_hit      24.3 ns/op
+    rand get_miss      0.9 ns/op
+    rand update       14.4 ns/op

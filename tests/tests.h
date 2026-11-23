@@ -25,5 +25,6 @@ int test_bitmap(void);
 int test_platform(void);
 int test_concurrent(void);
 int test_dat(void);
+int test_dat_conc(void);
 
 #endif /* VDC_TESTS_H */

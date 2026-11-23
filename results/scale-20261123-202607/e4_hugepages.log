@@ -1,0 +1,27 @@
+== experiment 4: Huge pages at scale (budget 9.00 GiB)
+  10M dense keys: planned in 0.0 s
+  flat        10M dense     created + prepared in 0.1 s, process memory 0.60 GiB (plan 0.85)
+    seq  insert        7.9 ns/op
+    seq  get_hit       4.4 ns/op
+    seq  update        8.2 ns/op
+    rand insert       12.7 ns/op
+    rand get_hit      12.3 ns/op
+    rand update       12.9 ns/op
+  rows-64K    10M dense     created + prepared in 0.1 s, process memory 0.60 GiB (plan 0.85)
+    seq  insert        7.9 ns/op
+    seq  get_hit       4.7 ns/op
+    seq  get_miss      1.0 ns/op
+    seq  update        8.3 ns/op
+    rand insert       12.7 ns/op
+    rand get_hit      16.4 ns/op
+    rand get_miss      1.0 ns/op
+    rand update       12.9 ns/op
+  rows-2M     10M dense     created + prepared in 0.1 s, process memory 0.60 GiB (plan 0.85)
+    seq  insert        7.9 ns/op
+    seq  get_hit       4.7 ns/op
+    seq  get_miss      0.9 ns/op
+    seq  update        8.3 ns/op
+    rand insert       12.7 ns/op
+    rand get_hit      16.3 ns/op
+    rand get_miss      0.9 ns/op
+    rand update       13.0 ns/op

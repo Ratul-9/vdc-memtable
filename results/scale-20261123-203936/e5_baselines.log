@@ -1,0 +1,83 @@
+== experiment 5: Baselines at scale (budget 9.00 GiB)
+  1M dense keys: planned in 0.0 s
+  hash         1M dense     created + prepared in 0.0 s, process memory 0.13 GiB (plan 0.38)
+    seq  insert       31.4 ns/op
+    seq  get_hit      31.0 ns/op
+    seq  get_miss     43.1 ns/op
+    seq  update       32.5 ns/op
+    rand insert       31.3 ns/op
+    rand get_hit      31.0 ns/op
+    rand get_miss     42.9 ns/op
+    rand update       32.6 ns/op
+  skiplist     1M dense     created + prepared in 0.0 s, process memory 0.09 GiB (plan 0.34)
+    seq  insert       74.7 ns/op
+    seq  get_hit      80.6 ns/op
+    seq  get_miss     16.3 ns/op
+    seq  update       72.6 ns/op
+    rand insert      544.0 ns/op
+    rand get_hit     741.7 ns/op
+    rand get_miss     53.3 ns/op
+    rand update      787.9 ns/op
+  10M dense keys: planned in 0.0 s
+  hash        10M dense     created + prepared in 0.3 s, process memory 1.00 GiB (plan 1.25)
+    seq  insert       42.9 ns/op
+    seq  get_hit      45.7 ns/op
+    seq  get_miss    105.6 ns/op
+    seq  update       49.3 ns/op
+    rand insert       42.6 ns/op
+    rand get_hit      45.2 ns/op
+    rand get_miss    105.5 ns/op
+    rand update       47.7 ns/op
+  skiplist    10M dense     created + prepared in 0.3 s, process memory 0.90 GiB (plan 1.14)
+    seq  insert       80.7 ns/op
+    seq  get_hit      80.2 ns/op
+    seq  get_miss     25.6 ns/op
+    seq  update       73.4 ns/op
+    rand insert     1303.0 ns/op
+    rand get_hit    1496.8 ns/op
+    rand get_miss     44.8 ns/op
+    rand update     1657.2 ns/op
+  25M dense keys: planned in 0.1 s
+  hash        25M dense     created + prepared in 0.6 s, process memory 2.00 GiB (plan 2.25)
+    seq  insert       67.7 ns/op
+    seq  get_hit      50.4 ns/op
+    seq  get_miss    181.9 ns/op
+    seq  update       54.8 ns/op
+    rand insert       67.3 ns/op
+    rand get_hit      50.3 ns/op
+    rand get_miss    181.6 ns/op
+    rand update       53.3 ns/op
+  skiplist    25M dense     skipped: skip list limited to 10000000 keys (run time)
+  50M dense keys: planned in 0.2 s
+  hash        50M dense     created + prepared in 1.2 s, process memory 4.00 GiB (plan 4.25)
+    seq  insert       73.3 ns/op
+    seq  get_hit      29.3 ns/op
+    seq  get_miss    195.5 ns/op
+    seq  update       30.4 ns/op
+    rand insert       72.9 ns/op
+    rand get_hit      29.4 ns/op
+    rand get_miss    195.6 ns/op
+    rand update       30.4 ns/op
+  skiplist    50M dense     skipped: skip list limited to 10000000 keys (run time)
+  75M dense keys: planned in 0.3 s
+  hash        75M dense     created + prepared in 2.3 s, process memory 8.00 GiB (plan 8.25)
+    seq  insert       48.0 ns/op
+    seq  get_hit      32.6 ns/op
+    seq  get_miss    105.7 ns/op
+    seq  update       34.0 ns/op
+    rand insert       47.7 ns/op
+    rand get_hit      32.6 ns/op
+    rand get_miss    107.3 ns/op
+    rand update       34.1 ns/op
+  skiplist    75M dense     skipped: skip list limited to 10000000 keys (run time)
+  100M dense keys: planned in 0.4 s
+  hash       100M dense     created + prepared in 2.3 s, process memory 8.00 GiB (plan 8.25)
+    seq  insert       79.7 ns/op
+    seq  get_hit      32.6 ns/op
+    seq  get_miss    205.5 ns/op
+    seq  update       34.1 ns/op
+    rand insert       79.2 ns/op
+    rand get_hit      32.6 ns/op
+    rand get_miss    205.1 ns/op
+    rand update       34.2 ns/op
+  skiplist   100M dense     skipped: skip list limited to 10000000 keys (run time)

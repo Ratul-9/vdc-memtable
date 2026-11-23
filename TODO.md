@@ -58,7 +58,8 @@ Legend: [x] done | [ ] to do | (P#) = problem number in `memory and cache relate
 - [x] dat_scale: experiments 1 flat scale, 2 row-table cost, 3 density, 4 huge pages, 5 baselines; memory planner (skip above budget), memory guard (hard stop 10 GiB), --plan, --hugepages-needed
 - [x] scripts/scale/run_scale.sh (one process at a time, huge-page pool reserved and released with trap) + summarize_scale.py; SCALE_EXPERIMENTS.md; unit tests (test_dat)
 - [ ] Run on the 16 GB Linux machine: `scripts/scale/run_scale.sh --quick`, then the full run
-- [ ] Experiment 6: threads at 100M keys (needs thread-safe row creation)
+- [x] Experiment 6 built: thread-safe DAT (dat_conc.h: flat / rows, mutex / spin / rwlock / nodelock / seqlock with fetch_or claim, CAS row creation), dat_mtscale, scripts/scale/run_mt_scale.sh, tests (TSan clean)
+- [ ] Run experiment 6 on Linux: `scripts/scale/run_mt_scale.sh --quick`, then the full run
 
 ## To do
 

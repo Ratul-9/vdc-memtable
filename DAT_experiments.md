@@ -4,8 +4,9 @@ A complete record of the VDC / direct-address-table memtable project: the idea, 
 every experiment, every baseline, every result, and what it means for a paper. Written in plain terms, with the
 exact numbers.
 
-Status: 23 Nov 2026. Single-threaded and multithreaded experiments are done on one physical machine. The next
-planned step (section 12) is a two-level "matrix" layout and scale tests up to 100M keys.
+Status: 23 Nov 2026. Single-threaded (1M keys), multithreaded, and scale (1M–100M keys, flat array and the two-level
+"matrix" layout) experiments are done on one physical machine. Experiment 6 (threads at every key count) is built
+and ready to run (`scripts/scale/run_mt_scale.sh`).
 
 ---
 
@@ -22,7 +23,7 @@ planned step (section 12) is a two-level "matrix" layout and scale tests up to 1
 9. Multithreaded results
 10. Comparison with published papers
 11. Conclusions: what worked and what did not
-12. Next: two-level layout and 10M–100M keys
+12. Two-level layout and 1M–100M keys (scale experiments)
 13. Paper readiness
 14. File map
 
@@ -516,7 +517,7 @@ No published design reaches one line per operation.
 | Versions / snapshots | ❌ | ❌ | ❌ | – | ✅ | ✅ | ✅ | ✅ |
 | Lock-free reads | ✅ seqlock | ❌ | ✅ | ✅ | ❌ | ✅ | – | ✅ |
 | Inside a storage engine | ❌ | ❌ | ❌ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Capacity | 1M keys, fixed 64 MiB | 100M+ | 33M+ | 100M+ | 2M+ | 1M+ | 64 MB buffers | GBs |
+| Capacity | 1M keys (VDC-Space); **100M measured** with the two-level layout (section 12.5) | 100M+ | 33M+ | 100M+ | 2M+ | 1M+ | 64 MB buffers | GBs |
 
 ### 10.5 Estimate inside RocksDB (not measured)
 
@@ -554,7 +555,9 @@ in-Node version word (lock-free reads). The VDC permutation itself added cost al
 3. **A cache-set aliasing model** that predicts when a bit-permuted layout loses cache capacity, confirmed in L2 and
    L3.
 4. **Seqlock inside the Node**: lock-free reads, 292 M ops/s on hot reads with 6 cores.
-5. **Concurrency lessons:**
+5. **Scale (section 12.5):** O(1) by instruction count from 1M to 100M keys; on huge pages time per op is also
+   nearly constant; the two-level layout with 2 MiB rows costs a constant ~5 ns per get and nothing per write.
+6. **Concurrency lessons:**
    - atomic instructions on uncached lines block overlapping misses;
    - delegation loses 3–8× to direct access on one socket;
    - key-range ownership breaks under skew;
@@ -562,10 +565,10 @@ in-Node version word (lock-free reads). The VDC permutation itself added cost al
 
 ---
 
-## 12. Next: two-level layout and 10M–100M keys (built, not run yet)
+## 12. Two-level layout and 1M–100M keys (scale experiments)
 
-**Status:** experiments 1–5 are implemented (`build/dat_scale`, `scripts/scale/run_scale.sh`) under a 9 GiB memory
-budget for a 16 GB machine. See [SCALE_EXPERIMENTS.md](SCALE_EXPERIMENTS.md) for how to run them and what happens in
+**Status:** experiments 1–5 are built and **run** (results in 12.5). Implemented as `build/dat_scale` and
+`scripts/scale/run_scale.sh`, under a 9 GiB memory budget for a 16 GB machine. See [SCALE_EXPERIMENTS.md](SCALE_EXPERIMENTS.md) for how to run them and what happens in
 memory. Implementation choices beyond the plan below:
 - the row table uses 4-byte entries, so the sizes are 8 MiB / 512 KiB / 16 KiB (still L3 / L2 / L1);
 - keys are computed on the fly, so there are no key lists;
@@ -611,7 +614,8 @@ A "matrix": row = high bits of the key, column = low bits.
 | 75M | 4.8 GB | 1.2 GB | 6.0 GB |
 | 100M | 6.4 GB | 1.6 GB | 8.0 GB |
 
-- **The row size decides where the row table lives** (2^27 key range, 8 B per row pointer):
+- **The row size decides where the row table lives** (planned with 8 B pointers; built with 4 B entries, which halves
+  each table: 8 MiB / 512 KiB / 16 KiB, still L3 / L2 / L1):
 
 | Row size | Keys per row | Rows | Table | Fits in |
 |---|---:|---:|---:|---|
@@ -627,8 +631,8 @@ A "matrix": row = high bits of the key, column = low bits.
 | 2 | What does the row table cost? | 3 row sizes × the same key counts, dense keys | two-level minus flat |
 | 3 | What do on-demand rows save? | 10M and 100M; 3 row sizes; dense / clustered (runs of ~1,000) / sparse | memory per key next to ns/op |
 | 4 | Do huge pages still help at 6 GB? | flat and best two-level; 10M, 50M, 100M; 4 KiB vs 2 MiB | dTLB misses, ns/op |
-| 5 | Do baselines hold up at scale? | hash at all sizes; skip list up to 10–25M; B-skiplist artifact at 100M | same metrics |
-| 6 | (later) Threads at scale | seqlock on the best layout, 100M, 1–12 threads, uniform and zipf | throughput, latency |
+| 5 | Do baselines hold up at scale? | hash at all sizes; skip list up to 10M (B-skiplist artifact not run yet) | same metrics |
+| 6 | (built, not run yet) Threads at every key count | flat and rows-2M × mutex / spin / nodelock / seqlock, 1M–100M keys, 1–12 threads, load / A / C / W, uniform and zipf | throughput, scaling, p99 latency |
 
 Order: check RAM → 1 → 2 → 3 → 4 and 5 → 6.
 
@@ -650,6 +654,120 @@ Order: check RAM → 1 → 2 → 3 → 4 and 5 → 6.
 9. **The 27-bit key layout change** requires re-running the old 1M tests.
 10. **One machine.** Watch for thermal throttling; pin threads; fix the CPU frequency.
 
+
+### 12.5 Results
+
+Machine: i5-12400F, 18 MiB L3, 16 GB RAM. Runs:
+- `results/scale-20261123-203936` (base pages, experiments 1, 2, 3, 5, keys 1M–100M);
+- `results/scale-20261123-210146` (huge pages, experiment 4, keys 10M / 50M / 100M).
+
+3 repetitions; numbers in ns per operation unless stated. Each folder has an `analysis.md` with every table.
+
+**A measurement fix came first.** The first quick run (`scale-20261123-200631`) computed keys inside the timed loop:
+- that added 9–24 ns per operation;
+- its cost depended on N, which made the O(1) check fail falsely.
+
+Keys are now computed in batches of 4,096 between measured sections, and the second quick run
+(`scale-20261123-202607`) confirmed the fix.
+
+#### Checks
+
+| Check | Result |
+|---|---|
+| Correctness, page faults | ✅ every result correct, 0 page faults |
+| Memory budget (9 GiB) | ✅ peaks 5.96 (E1, E2, E4), 8.01 (E3), 8.00 (E5) GiB; planner exact to 0.01 GiB |
+| **O(1): flat** | ✅ **1.00**: get = 57.1 instructions at every size from 1M to 100M, both page sizes |
+| **O(1): rows-2M, rows-4K** | ✅ 1.03, 1.04 (rows-2M is 73.1 instructions per get at every size) |
+| O(1): rows-64K | ❌ 1.36 (see note) |
+| O(1): hash table / skip list | ❌ 2.02 / 1.66 |
+
+**Note on rows-64K.** The 1.36 comes only from misses on clustered keys, which take one of two fixed paths:
+- no row: 16 instructions;
+- row exists, key absent: about 25 instructions.
+
+Each path is constant, so this is still O(1). The check compares averages, which is too strict for a two-path
+operation.
+
+#### Flat array scaling (dense keys, random order)
+
+| keys | get_hit base | get_hit huge | insert base | insert huge | dTLB misses/get base → huge |
+|---:|---:|---:|---:|---:|---|
+| 1M | 13.0 | – | 11.3 | – | 0.90 |
+| 10M | 13.6 | 12.3 | 13.0 | 12.7 | 0.99 → 0.00 |
+| 25M | 13.9 | – | 13.3 | – | 0.99 |
+| 50M | 14.5 | 12.4 | 13.4 | 12.9 | 1.00 → 0.46 |
+| 75M | 16.9 | – | 13.7 | – | 1.00 |
+| 100M | 18.7 | **12.6** | 14.0 | 12.9 | 1.00 → 0.74 |
+
+- **Base pages:** gets slow 44% from 1M to 100M. The cause is page-table walks: with 6 GB of data, the page-table
+  entries no longer fit in cache.
+- **Huge pages:** gets slow only 2% from 10M to 100M (12.3 → 12.6). TLB misses return above about 1.6 GB (46% of
+  gets at 50M, 74% at 100M), but a huge-page TLB miss is cheap: the whole page table for 6 GB is about 24 KB and stays
+  in cache.
+- **Sequential operations:** get 4.4–4.5, insert 7.9, update 8.2 ns at every size.
+
+#### Cost of the row table (dense keys, random get_hit)
+
+| keys | flat | rows-2M (table 16 KiB, L1) | rows-64K (512 KiB, L2) | rows-4K (8 MiB, L3) |
+|---:|---:|---:|---:|---:|
+| 10M, base | 13.6 | +5.4 | +7.1 | +7.8 |
+| 100M, base | 18.7 | +5.6 | +7.6 | **+14.0** (+0.72 LLC misses) |
+| 10M, huge | 12.3 | +4.6 | +5.7 | – |
+| 100M, huge | 12.6 | **+5.0** | +6.3 | – |
+
+- **rows-2M costs a constant ~5 ns on random gets** (+30–40%) from 10M to 100M keys. Its table stays in L1 (no extra
+  LLC misses).
+- **Inserts and updates: no extra cost** at any size (insert 14.2 vs 14.0 at 100M base; 12.9 vs 12.9 huge).
+- **Sequential gets:** +0.3–0.4 ns.
+- **rows-4K does not scale:** its 8 MiB table is pushed out of the L3 at 75M+ keys and needs TLB entries of its own.
+  Drop it.
+- **Misses on rows: 0.8–1.0 ns at every size** (4 cycles, no data touched). The flat array takes 5.7–11.1 ns on a
+  miss, because it reads an untouched page.
+
+#### Key density: memory per key and get_hit time (base pages, random)
+
+| keys | pattern | flat | rows-4K | rows-64K | rows-2M |
+|---:|---|---|---|---|---|
+| 10M | dense | 64 B, 13.6 ns | 65 B, 21.1 | 64 B, 18.8 | 64 B, 18.6 |
+| 10M | clustered (runs of 1,000) | 67 B, 14.1 | 68 B, 21.9 | 124 B, 20.9 | **799 B**, 19.4 |
+| 10M | sparse | **853 B**, 20.1 | 854 B, 34.0 | 859 B, 27.8 | 859 B, 25.6 |
+| 100M | dense | 64 B, 18.7 | 64 B, 31.4 | 64 B, 25.8 | 64 B, 27.9 |
+| 100M | clustered | 65 B, 19.3 | 65 B, 33.5 | 80 B, 26.9 | 86 B, 24.5 |
+| 100M | sparse | 86 B, 20.1 | 86 B, 35.1 | 86 B, 28.1 | 86 B, 25.6 |
+
+- **Memory waste is a low-density problem.** At 10M keys in the 134M range, sparse keys cost 13× the 64 B minimum
+  in every layout, and clustered keys cost 12× with 2 MiB rows. At 100M keys (75% of the range used) every layout is
+  within 1.35×.
+- **The flat array on base pages already gets on-demand memory** at 4 KiB granularity from the operating system, so
+  rows save memory only when rows are smaller than the groups of keys.
+
+#### Against the baselines
+
+| 100M keys, random | flat (huge) | rows-2M (huge) | hash table (base) | skip list |
+|---|---:|---:|---:|---:|
+| get_hit | 12.6 | 17.6 | 32.6 | ~1,500 at 10M |
+| insert | 12.9 | 12.9 | 79.2 | ~1,300 at 10M |
+| get_miss | 5.7 (base) | 0.8 | 205.1 | – |
+| instructions per get | 57.1, constant | 73.1, constant | 106–114, varies | 365–422, grows |
+
+- **The hash table is 1.9–2.6× slower on gets and 6× slower on inserts at 100M.** Its misses are about 250× slower
+  than rows-2M's.
+- **The hash table's numbers vary between 29 and 50 ns per get** with its power-of-two capacity (load factor
+  0.56–0.75). Read them as a range.
+- **The skip list is about 110× slower** (run up to 10M keys only).
+
+#### What the scale experiments show
+
+1. **O(1) holds from 1M to 100M keys**, by instruction count, for the flat array and the 2 MiB-row layout.
+2. **With huge pages, time per operation is also nearly constant** (+2% flat, +4% rows-2M from 10M to 100M).
+3. **The two-level layout (2 MiB rows) costs a constant ~5 ns on random gets and nothing on writes.** In return it
+   gives sorted keys, memory that grows with the data, and 0.8 ns misses.
+4. **Limits:**
+   - memory per key is poor for sparse or loosely clustered keys at low density;
+   - 4 KiB rows don't scale;
+   - huge pages are needed above about 10M keys;
+   - the hash table on huge pages at 100M and threads at 100M were not tested.
+
 ---
 
 ## 13. Paper readiness
@@ -657,7 +775,8 @@ Order: check RAM → 1 → 2 → 3 → 4 and 5 → 6.
 **Not ready for a full VLDB research paper.** The reasons:
 - the central idea (VDC placement) is contradicted by the measurements;
 - O(1) comes from direct addressing, which reviewers will call a textbook direct-address table;
-- integer keys only, 1M keys, no versions, scans or engine integration;
+- integer keys only, no versions, scans or engine integration (scale is no longer the gap: 100M keys are measured,
+  section 12.5);
 - self-written baselines and one machine.
 
 **Viable paths:**
@@ -669,7 +788,8 @@ Order: check RAM → 1 → 2 → 3 → 4 and 5 → 6.
 2. **Full paper later**, reframed:
    - "an O(1), one-line-per-operation, sorted memtable for dense-key workloads", e.g. block stores, where keys are
      block addresses and RASK reports 65–81% of writes come in consecutive runs;
-   - the two-level layout (section 12);
+   - the two-level layout (section 12): already measured to 100M keys, O(1) by instruction count, constant time on
+     huge pages, +5 ns per get over flat, 0.8 ns misses;
    - RocksDB or block-store integration with versions;
    - real traces;
    - published baselines on the same machine;
@@ -693,6 +813,10 @@ Order: check RAM → 1 → 2 → 3 → 4 and 5 → 6.
 | `TODO.md` | progress checklist |
 | `results/20261122-081705/analysis.md` | single-threaded analysis (physical machine) |
 | `results/mt-20261123-183654/analysis.md` | multithreaded analysis |
+| `results/scale-20261123-200631/analysis.md` | first quick scale run (found the key-generation flaw) |
+| `results/scale-20261123-202607/analysis.md` | quick scale run after the fix |
+| `results/scale-20261123-203936/analysis.md` | full scale run, base pages (experiments 1, 2, 3, 5) |
+| `results/scale-20261123-210146/analysis.md` | full scale run, huge pages (experiment 4) |
 | `results/*/report_*.md`, `*.csv` | raw reports and data |
 
 Raw data of the Azure VM run was replaced by the physical run. Its numbers are kept only in section 8.1.

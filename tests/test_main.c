@@ -18,6 +18,7 @@ static const TestCase tests[] = {
     {"platform", test_platform},
     {"concurrent", test_concurrent},
     {"dat", test_dat},
+    {"dat_conc", test_dat_conc},
 };
 
 int main(void)

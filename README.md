@@ -115,6 +115,12 @@ never above a 9 GiB memory budget. Guide, including what happens in memory: [SCA
 scripts/scale/run_scale.sh --quick
 ```
 
+Experiment 6 (threads at every key count, 1M–100M keys):
+
+```bash
+scripts/scale/run_mt_scale.sh --quick
+```
+
 ## What is measured
 
 **Patterns**: `seq` = keys 0..N-1 ascending; `dense_rand` = keys 0..N-1 in random order; `rand` = N random keys from

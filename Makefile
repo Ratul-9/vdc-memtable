@@ -8,6 +8,7 @@
 #   make bench         build the benchmark driver       build/vdc_bench
 #   make mtbench       build the multithreaded driver   build/vdc_mtbench
 #   make scale         build the scale experiments      build/dat_scale (10M-100M keys)
+#   make mtscale       build experiment 6               build/dat_mtscale (threads at 1M-100M keys)
 #   make experiments   build the experiment programs    build/exp_NN_name
 #   make clean         remove build/ and build-debug/
 #
@@ -44,6 +45,10 @@ SCALE_SRC := $(wildcard bench_scale/*.c)
 SCALE_OBJ := $(patsubst %.c,$(BUILD)/%.o,$(SCALE_SRC))
 SCALE_BIN := $(BUILD)/dat_scale
 
+MTSCALE_SRC := $(wildcard bench_mtscale/*.c)
+MTSCALE_OBJ := $(patsubst %.c,$(BUILD)/%.o,$(MTSCALE_SRC))
+MTSCALE_BIN := $(BUILD)/dat_mtscale
+
 MT_SRC   := $(wildcard bench_mt/*.c)
 MT_OBJ   := $(patsubst %.c,$(BUILD)/%.o,$(MT_SRC))
 MT_BIN   := $(BUILD)/vdc_mtbench
@@ -52,11 +57,11 @@ EXP_SRC  := $(wildcard experiments/*/experiment.c)
 EXP_OBJ  := $(patsubst %.c,$(BUILD)/%.o,$(EXP_SRC))
 EXP_BIN  := $(patsubst experiments/%/experiment.c,$(BUILD)/exp_%,$(EXP_SRC))
 
-ALL_OBJ  := $(OBJ) $(TEST_OBJ) $(BASE_OBJ) $(BENCH_OBJ) $(EXP_OBJ) $(MT_OBJ) $(SCALE_OBJ)
+ALL_OBJ  := $(OBJ) $(TEST_OBJ) $(BASE_OBJ) $(BENCH_OBJ) $(EXP_OBJ) $(MT_OBJ) $(SCALE_OBJ) $(MTSCALE_OBJ)
 
-.PHONY: all lib test debug tsan bench mtbench scale experiments clean
+.PHONY: all lib test debug tsan bench mtbench scale mtscale experiments clean
 
-all: lib $(TEST_BIN) bench mtbench scale experiments
+all: lib $(TEST_BIN) bench mtbench scale mtscale experiments
 
 lib: $(LIB)
 
@@ -88,6 +93,11 @@ scale: $(SCALE_BIN)
 # Scale experiments link the hash table and skip list baselines (not bench/'s adapters).
 $(SCALE_BIN): $(SCALE_OBJ) $(BENCH_COMMON_OBJ) $(BASE_OBJ) $(LIB)
 	$(CC) $(CFLAGS) $(OPT) $(SCALE_OBJ) $(BENCH_COMMON_OBJ) $(BASE_OBJ) $(LIB) -o $@ $(LDLIBS)
+
+mtscale: $(MTSCALE_BIN)
+
+$(MTSCALE_BIN): $(MTSCALE_OBJ) $(BENCH_COMMON_OBJ) $(LIB)
+	$(CC) $(CFLAGS) $(OPT) $(MTSCALE_OBJ) $(BENCH_COMMON_OBJ) $(LIB) -o $@ $(LDLIBS)
 
 experiments: $(EXP_BIN)
 

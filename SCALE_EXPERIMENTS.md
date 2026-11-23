@@ -191,5 +191,61 @@ take hours.
    O(1) check fail falsely.
 9. **Run time:** expect a few hours for the full run (estimate, not measured). `--quick` is much shorter.
 10. **One machine.** Pin the CPU (`--cpu`), keep the frequency fixed if possible, and watch for thermal throttling.
-11. **Experiment 6 (threads at 100M keys) is not built yet.** It needs a thread-safe row-creation step; the node
-    already reserves `lock` and `version` for it.
+11. **Experiment 6 (threads at every key count) is built** as a separate program; see the next section.
+
+## Experiment 6: threads at every key count
+
+**Question:** does multithreaded throughput hold as the table grows from 1M to 100M keys? Which lock design and
+which layout scale best?
+
+```bash
+scripts/scale/run_mt_scale.sh --quick
+```
+
+```bash
+scripts/scale/run_mt_scale.sh
+```
+
+Output: `results/mtscale-<timestamp>/report_mtscale.md` and `results_mtscale.csv`. The full run takes very roughly
+1–2 hours (estimate).
+
+| What | Default |
+|---|---|
+| Program | `build/dat_mtscale` (`bench_mtscale/`), thread-safe structures in `include/dat/dat_conc.h` |
+| Layouts | flat, rows-2M (`--layouts flat,rows-64K,rows-2M`) |
+| Lock designs | mutex, spin (65,536 striped spinlocks), nodelock (lock byte in the node), seqlock (lock-free reads; writers claim the node with one `fetch_or`) — `rwlock` available with `--designs` |
+| Keys | 1M, 10M, 25M, 50M, 75M, 100M (dense keys 0 .. N−1) |
+| Threads | 1, 2, 4, 6, 8, 12 (pinned one per physical core first, then hyper-threads) |
+| Workloads | load (T threads insert all N keys into an empty table), A 50/50, C 100% get, W 100% update |
+| Key distributions | uniform, zipf θ 0.99 (hottest keys 0, 1, 2, …) |
+| Per cell | 500K operations per thread, 3 repetitions, 1 in 64 operations timed for latency |
+| Pages | 2 MiB hugetlb (the script reserves about 6 GiB for 100M keys and gives it back) |
+
+**Thread-safe row creation:** the first thread to find a missing row marks it "being created" with one
+compare-and-swap, takes the next arena row, and publishes it. Others wait for that row. The tests check that 4
+threads racing over the same rows create each row exactly once.
+
+**Correctness checks** on every operation:
+- every get returns a whole value with its own key (no torn or misrouted reads);
+- every operation returns the expected status;
+- after every load, all N keys are present.
+
+**What is in memory** (100M keys): at most 6.8 GiB.
+
+| Part | Size |
+|---|---:|
+| One structure | 6.0 GiB of huge pages + 4 MiB of locks |
+| Insertion order for the load (N × 4 B) | 0.37 GiB |
+| Operation lists of the current thread count | up to 0.17 GiB |
+| Program | 0.25 GiB |
+
+As in experiments 1–5, the memory is planned before anything is allocated, one structure exists at a time, and the
+program stops above 10 GiB. `./build/dat_mtscale --plan` prints the plan.
+
+**Report tables:**
+- checks;
+- fastest design at 100M keys and the most threads;
+- **throughput vs key count** (1, 6 and 12 threads) for each layout and workload;
+- scaling with threads at 100M;
+- rows-2M vs flat;
+- p99 / p99.9 latency.
