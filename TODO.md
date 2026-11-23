@@ -53,6 +53,13 @@ Legend: [x] done | [ ] to do | (P#) = problem number in `memory and cache relate
 - [x] Unit tests: queue exactly-once with 4+4 threads, no torn reads under hot-key contention for all 5 locking modes, service results / ownership / per-owner order; passes under ThreadSanitizer (`make tsan`)
 - [x] vdc_mtbench + scripts/run_mt_bench.sh + CONCURRENCY.md; smoke run on macOS: all 11 designs correct (0 torn reads, 0 wrong statuses)
 
+### Scale experiments 1M-100M keys (built and smoke-tested on macOS, not run on Linux yet)
+- [x] DAT library: 64 B DatNode with 4-byte key (2^27 keys), flat array (lazy reserve on base pages), two-level rows with on-demand rows (row table 8 MiB / 512 KiB / 16 KiB), on-the-fly key sets (dense / clustered / sparse) with a reversible scramble
+- [x] dat_scale: experiments 1 flat scale, 2 row-table cost, 3 density, 4 huge pages, 5 baselines; memory planner (skip above budget), memory guard (hard stop 10 GiB), --plan, --hugepages-needed
+- [x] scripts/scale/run_scale.sh (one process at a time, huge-page pool reserved and released with trap) + summarize_scale.py; SCALE_EXPERIMENTS.md; unit tests (test_dat)
+- [ ] Run on the 16 GB Linux machine: `scripts/scale/run_scale.sh --quick`, then the full run
+- [ ] Experiment 6: threads at 100M keys (needs thread-safe row creation)
+
 ## To do
 
 ### Next: run on Linux

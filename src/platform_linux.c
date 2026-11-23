@@ -91,6 +91,22 @@ void *vdc_map(size_t bytes, VdcPageMode mode, int populate)
     return p;
 }
 
+void *vdc_map_lazy(size_t bytes)
+{
+    const size_t len = vdc_map_size(bytes, VDC_PAGES_BASE);
+    if (len == 0) {
+        errno = EINVAL;
+        return NULL;
+    }
+    void *p = mmap(NULL, len, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, -1, 0);
+    if (p == MAP_FAILED)
+        return NULL;
+#ifdef MADV_NOHUGEPAGE
+    (void)madvise(p, len, MADV_NOHUGEPAGE);
+#endif
+    return p;
+}
+
 void vdc_unmap(void *p, size_t bytes, VdcPageMode mode)
 {
     if (p == NULL)

@@ -41,6 +41,14 @@ size_t vdc_map_size(size_t bytes, VdcPageMode mode);
  * are 2 MiB aligned. */
 void *vdc_map(size_t bytes, VdcPageMode mode, int populate);
 
+/*
+ * Reserve `bytes` of address space on base pages WITHOUT committing memory
+ * (MAP_NORESERVE, THP off). A page gets real memory only when it is first
+ * written; reading an untouched page returns zeros and uses no memory.
+ * Unmap with vdc_unmap(p, bytes, VDC_PAGES_BASE). NULL on failure.
+ */
+void *vdc_map_lazy(size_t bytes);
+
 /* Unmap memory from vdc_map (same bytes and mode). NULL is ignored. */
 void vdc_unmap(void *p, size_t bytes, VdcPageMode mode);
 

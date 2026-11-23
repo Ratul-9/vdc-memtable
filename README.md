@@ -21,6 +21,7 @@ and [memory and cache related problems.md](memory%20and%20cache%20related%20prob
 | `tests/` | unit tests (`make test`) |
 | `baselines/` | hash table (linear probing) and skip list with the same API semantics |
 | `bench/` | `vdc_bench` driver: timings + hardware counters, markdown tables, CSV |
+| `bench_scale/`, `include/dat/`, `src/dat/` | scale experiments `dat_scale` and the two-level layout |
 | `bench_mt/` | `vdc_mtbench` multithreaded driver (11 designs, threads, workloads, latency) |
 | `experiments/` | focused experiments 01–07, each with a README |
 | `scripts/` | Linux setup and run scripts |
@@ -104,6 +105,15 @@ scripts/run_mt_bench.sh
 Output: `results/mt-<timestamp>/report_mt.md` (Checks, fastest design, scaling, VDC scatter vs identity, throughput
 and p50 / p99 / p99.9 latency per workload) and `results_mt.csv`. `make tsan` runs the unit tests under
 ThreadSanitizer.
+
+## Scale experiments (1M – 100M keys)
+
+Flat array vs a two-level layout with rows created on demand, plus the hash table and skip list, from 1M to 100M keys,
+never above a 9 GiB memory budget. Guide, including what happens in memory: [SCALE_EXPERIMENTS.md](SCALE_EXPERIMENTS.md).
+
+```bash
+scripts/scale/run_scale.sh --quick
+```
 
 ## What is measured
 

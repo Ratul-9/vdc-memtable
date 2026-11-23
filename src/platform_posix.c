@@ -63,6 +63,21 @@ void *vdc_map(size_t bytes, VdcPageMode mode, int populate)
     return p;
 }
 
+void *vdc_map_lazy(size_t bytes)
+{
+    const size_t len = vdc_map_size(bytes, VDC_PAGES_BASE);
+    if (len == 0) {
+        errno = EINVAL;
+        return NULL;
+    }
+    int flags = MAP_PRIVATE | MAP_ANONYMOUS;
+#ifdef MAP_NORESERVE
+    flags |= MAP_NORESERVE;
+#endif
+    void *p = mmap(NULL, len, PROT_READ | PROT_WRITE, flags, -1, 0);
+    return p == MAP_FAILED ? NULL : p;
+}
+
 void vdc_unmap(void *p, size_t bytes, VdcPageMode mode)
 {
     if (p == NULL)

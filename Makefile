@@ -7,6 +7,7 @@
 #   make tsan          unit tests under ThreadSanitizer
 #   make bench         build the benchmark driver       build/vdc_bench
 #   make mtbench       build the multithreaded driver   build/vdc_mtbench
+#   make scale         build the scale experiments      build/dat_scale (10M-100M keys)
 #   make experiments   build the experiment programs    build/exp_NN_name
 #   make clean         remove build/ and build-debug/
 #
@@ -23,7 +24,7 @@ CFLAGS   := -std=c11 -D_GNU_SOURCE -pthread -fno-strict-aliasing -Wall -Wextra -
 LDLIBS   := -pthread -lm
 OPT      ?= -O2
 
-SRC      := $(wildcard src/*.c)
+SRC      := $(wildcard src/*.c) $(wildcard src/dat/*.c)
 OBJ      := $(patsubst %.c,$(BUILD)/%.o,$(SRC))
 LIB      := $(BUILD)/libvdc.a
 
@@ -39,6 +40,10 @@ BENCH_OBJ := $(patsubst %.c,$(BUILD)/%.o,$(BENCH_SRC))
 BENCH_BIN := $(BUILD)/vdc_bench
 BENCH_COMMON_OBJ := $(BUILD)/bench/bench_common.o
 
+SCALE_SRC := $(wildcard bench_scale/*.c)
+SCALE_OBJ := $(patsubst %.c,$(BUILD)/%.o,$(SCALE_SRC))
+SCALE_BIN := $(BUILD)/dat_scale
+
 MT_SRC   := $(wildcard bench_mt/*.c)
 MT_OBJ   := $(patsubst %.c,$(BUILD)/%.o,$(MT_SRC))
 MT_BIN   := $(BUILD)/vdc_mtbench
@@ -47,11 +52,11 @@ EXP_SRC  := $(wildcard experiments/*/experiment.c)
 EXP_OBJ  := $(patsubst %.c,$(BUILD)/%.o,$(EXP_SRC))
 EXP_BIN  := $(patsubst experiments/%/experiment.c,$(BUILD)/exp_%,$(EXP_SRC))
 
-ALL_OBJ  := $(OBJ) $(TEST_OBJ) $(BASE_OBJ) $(BENCH_OBJ) $(EXP_OBJ) $(MT_OBJ)
+ALL_OBJ  := $(OBJ) $(TEST_OBJ) $(BASE_OBJ) $(BENCH_OBJ) $(EXP_OBJ) $(MT_OBJ) $(SCALE_OBJ)
 
-.PHONY: all lib test debug tsan bench mtbench experiments clean
+.PHONY: all lib test debug tsan bench mtbench scale experiments clean
 
-all: lib $(TEST_BIN) bench mtbench experiments
+all: lib $(TEST_BIN) bench mtbench scale experiments
 
 lib: $(LIB)
 
@@ -77,6 +82,12 @@ mtbench: $(MT_BIN)
 
 $(MT_BIN): $(MT_OBJ) $(BENCH_COMMON_OBJ) $(LIB)
 	$(CC) $(CFLAGS) $(OPT) $(MT_OBJ) $(BENCH_COMMON_OBJ) $(LIB) -o $@ $(LDLIBS)
+
+scale: $(SCALE_BIN)
+
+# Scale experiments link the hash table and skip list baselines (not bench/'s adapters).
+$(SCALE_BIN): $(SCALE_OBJ) $(BENCH_COMMON_OBJ) $(BASE_OBJ) $(LIB)
+	$(CC) $(CFLAGS) $(OPT) $(SCALE_OBJ) $(BENCH_COMMON_OBJ) $(BASE_OBJ) $(LIB) -o $@ $(LDLIBS)
 
 experiments: $(EXP_BIN)
 
