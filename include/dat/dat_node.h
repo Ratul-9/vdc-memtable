@@ -6,8 +6,9 @@
  * 100M keys. The existing 1M-key code keeps using vdc/slot.h unchanged.
  *
  * Layout (bytes): 0 key u32 | 4 version u32 | 8 seqno u64 | 16 val_len u16 |
- * 18 lock u8 | 19 pad | 20 flags u32 | 24 reserved u64 | 32 value[32].
- * version / lock are reserved for a later concurrent version (experiment 6).
+ * 18 lock u8 | 19 pad | 20 flags u32 | 24 older u64 | 32 value[32].
+ * version / lock: used by the concurrent memtables (dat_conc.h, dat_mv.h).
+ * older: link to the next older version (dat_mv.h: version index + 1, 0 = none); 0 elsewhere.
  * Status codes are the MT_* codes from vdc/memtable.h.
  */
 #ifndef DAT_NODE_H
@@ -34,7 +35,7 @@ typedef struct DatNode {
     uint8_t lock;
     uint8_t pad_;
     uint32_t flags;
-    uint64_t reserved_;
+    uint64_t older;
     uint8_t value[DAT_VALUE_BYTES];
 } DatNode;
 

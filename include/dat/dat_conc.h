@@ -20,6 +20,9 @@
  * readers treat a row being created as absent (its first put has not finished).
  * No arena row is ever wasted, so the arena can be sized exactly.
  *
+ * Range scans (dc_scan) walk the slots in key order; on the two-level layout,
+ * rows that were never created are skipped whole.
+ *
  * Values are inline (<= 32 B). get copies the value out. The caller supplies
  * sequence numbers. Status codes are the MT_* codes.
  */
@@ -40,7 +43,14 @@ typedef enum DcMode { DC_MUTEX, DC_SPIN, DC_RWLOCK, DC_NODELOCK, DC_SEQLOCK, DC_
 
 #define DC_STRIPES      65536u
 #define DC_STRIPE_SHIFT 6u          /* 64 consecutive keys per stripe */
-#define DC_ROW_BUSY     0xFFFFFFFFu /* table entry: row being created */
+
+/* One scan result (dc_scan, dv_scan). */
+typedef struct DatKV {
+    uint32_t key;
+    uint32_t len;
+    uint64_t seqno;
+    uint8_t value[DAT_VALUE_BYTES];
+} DatKV;
 
 typedef struct DcLock {
     alignas(64) uint32_t word;
@@ -73,6 +83,14 @@ int dc_put(DatConc *c, uint32_t key, const void *value, size_t len, uint64_t seq
 int dc_delete(DatConc *c, uint32_t key, uint64_t seqno);
 /* out holds 32 bytes or is NULL; len / seqno may be NULL. */
 int dc_get(DatConc *c, uint32_t key, void *out, uint32_t *len, uint64_t *seqno);
+
+/*
+ * Thread-safe range scan: live keys in [start, end), ascending, at most limit
+ * (tombstones skipped). Each key is read with the memtable's own read
+ * synchronisation; keys are not read at one instant (no snapshot: see dat_mv.h).
+ * Returns the number written to out; *next (if not NULL) = key to resume from.
+ */
+size_t dc_scan(DatConc *c, uint32_t start, uint32_t end, size_t limit, DatKV *out, uint32_t *next);
 
 /* Keys present (tombstones included). Only when no other thread writes. */
 uint64_t dc_count(const DatConc *c);

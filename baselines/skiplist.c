@@ -148,3 +148,19 @@ int sl_get(const SkipList *sl, uint32_t key, const void **value, uint32_t *len)
         *len = n->val_len;
     return MT_OK;
 }
+
+size_t sl_scan(const SkipList *sl, uint32_t start, uint32_t end, size_t limit, uint32_t *keys,
+               const void **values)
+{
+    size_t got = 0;
+    for (const SlNode *n = sl_find_ge(sl, start, NULL); n != NULL && n->key < end && got < limit; n = n->next[0]) {
+        if (n->flags & BL_F_TOMBSTONE)
+            continue;
+        if (keys != NULL)
+            keys[got] = n->key;
+        if (values != NULL)
+            values[got] = n->value;
+        got++;
+    }
+    return got;
+}

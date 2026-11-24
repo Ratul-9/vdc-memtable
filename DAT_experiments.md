@@ -4,9 +4,13 @@ A complete record of the VDC / direct-address-table memtable project: the idea, 
 every experiment, every baseline, every result, and what it means for a paper. Written in plain terms, with the
 exact numbers.
 
-Status: 23 Nov 2026. Single-threaded (1M keys), multithreaded, and scale (1M–100M keys, flat array and the two-level
-"matrix" layout) experiments are done on one physical machine. Experiment 6 (threads at every key count) is built
-and ready to run (`scripts/scale/run_mt_scale.sh`).
+Status: 23 Nov 2026. All experiments so far are done on one physical machine:
+- single-threaded (1M keys);
+- multithreaded (1M keys);
+- scale (1M–100M keys, flat array and the two-level "matrix" layout);
+- threads at every key count (experiment 6, 1M–100M keys, 1–12 threads).
+
+Built but not yet run on Linux: per-key versions and multithreaded range scans (experiment 7, section 12.7).
 
 ---
 
@@ -557,6 +561,8 @@ in-Node version word (lock-free reads). The VDC permutation itself added cost al
 4. **Seqlock inside the Node**: lock-free reads, 292 M ops/s on hot reads with 6 cores.
 5. **Scale (section 12.5):** O(1) by instruction count from 1M to 100M keys; on huge pages time per op is also
    nearly constant; the two-level layout with 2 MiB rows costs a constant ~5 ns per get and nothing per write.
+   **Under threads (section 12.6):** throughput is the same at 10M and 100M keys; the two-level layout costs 0–7%;
+   seqlock gives lock-free reads with p99 under 1 µs.
 6. **Concurrency lessons:**
    - atomic instructions on uncached lines block overlapping misses;
    - delegation loses 3–8× to direct access on one socket;
@@ -632,7 +638,7 @@ A "matrix": row = high bits of the key, column = low bits.
 | 3 | What do on-demand rows save? | 10M and 100M; 3 row sizes; dense / clustered (runs of ~1,000) / sparse | memory per key next to ns/op |
 | 4 | Do huge pages still help at 6 GB? | flat and best two-level; 10M, 50M, 100M; 4 KiB vs 2 MiB | dTLB misses, ns/op |
 | 5 | Do baselines hold up at scale? | hash at all sizes; skip list up to 10M (B-skiplist artifact not run yet) | same metrics |
-| 6 | (built, not run yet) Threads at every key count | flat and rows-2M × mutex / spin / nodelock / seqlock, 1M–100M keys, 1–12 threads, load / A / C / W, uniform and zipf | throughput, scaling, p99 latency |
+| 6 | (run, results in 12.6) Threads at every key count | flat and rows-2M × mutex / spin / nodelock / seqlock, 1M–100M keys, 1–12 threads, load / A / C / W, uniform and zipf | throughput, scaling, p99 latency |
 
 Order: check RAM → 1 → 2 → 3 → 4 and 5 → 6.
 
@@ -766,7 +772,173 @@ operation.
    - memory per key is poor for sparse or loosely clustered keys at low density;
    - 4 KiB rows don't scale;
    - huge pages are needed above about 10M keys;
-   - the hash table on huge pages at 100M and threads at 100M were not tested.
+   - the hash table on huge pages at 100M was not tested.
+
+### 12.6 Experiment 6: threads at every key count
+
+Run `results/mtscale-20261123-213545` (quick run: `mtscale-20261123-212531`):
+- i5-12400F, 6 cores / 12 threads (8 and 12 threads use hyper-threads), hugetlb pages;
+- keys 1M, 10M, 25M, 50M, 75M, 100M; threads 1, 2, 4, 6, 8, 12;
+- layouts flat and rows-2M; designs mutex, spin, nodelock, seqlock (writers claim with `fetch_or`);
+- workloads load, A (50/50), C (100% get), W (100% update), with uniform and zipf θ 0.99 keys;
+- 500K operations per thread, 3 repetitions, 2,016 measurements.
+
+Thread-safe rows: the first thread to find a missing row claims it with one compare-and-swap, takes the next arena
+row, and publishes it. Others wait for it, so no row is created twice or wasted.
+
+Throughput is in M ops/s for all threads together. It includes the harness's per-operation checking work, so it is
+not comparable with the single-threaded ns/op numbers.
+
+#### Checks
+
+| Check | Result |
+|---|---|
+| Torn or misrouted reads, wrong statuses | 0 in all designs and measurements |
+| All keys present after every parallel load (12 threads racing to create rows at 100M keys) | ✅ |
+| Every planned size ran / peak memory | ✅ 12 of 12 / 6.53 GiB (budget 9) |
+
+#### Throughput holds from 10M to 100M keys (flat; cell = 6 threads / 12 threads)
+
+| workload | design | 1M | 10M | 25M | 50M | 75M | 100M |
+|---|---|---|---|---|---|---|---|
+| C uniform | seqlock | 80 / 93 | 58 / 67 | 57 / 65 | 57 / 64 | 57 / 64 | 57 / 64 |
+| W uniform | spin | 127 / 126 | 83 / 84 | 82 / 82 | 81 / 82 | 82 / 82 | 83 / 82 |
+| A uniform | spin | 79 / 93 | 63 / 75 | 62 / 73 | 61 / 73 | 61 / 73 | 61 / 73 |
+| load | spin | 96 / 96 | 82 / 82 | 82 / 82 | 82 / 82 | 82 / 82 | 82 / 82 |
+| C zipf | seqlock | 310 / 345 | 174 / 180 | 145 / 160 | 131 / 148 | 122 / 143 | 119 / 140 |
+| W zipf | nodelock | 205 / 156 | 177 / 196 | 168 / 184 | 159 / 175 | 152 / 172 | 149 / 169 |
+
+- **Uniform access: within 5% from 10M to 100M keys** in every design, with 6 and with 12 threads. The only step is
+  1M → 10M, when the data stops benefiting from the caches.
+- **Hot keys: −14% to −22% from 10M to 100M**, because the popular keys spread over more memory.
+
+#### Winners at 100M keys, 12 threads
+
+| workload | flat | rows-2M |
+|---|---|---|
+| load | spin 82.0 | spin 81.5 |
+| A uniform | spin 72.6 | spin 68.9 |
+| A zipf | seqlock 130.0 | seqlock 123.7 |
+| C uniform | seqlock 63.6 | spin 60.3 |
+| C zipf | seqlock 139.8 | seqlock 130.0 |
+| W uniform | spin 81.8 | spin 82.0 |
+| W zipf | nodelock 169.2 | nodelock 168.4 |
+
+#### Scaling, 1 → 12 threads at 100M keys (flat)
+
+| workload | spin | nodelock | seqlock |
+|---|---|---|---|
+| load | 1.4× | 2.8× | 2.8× |
+| C uniform | 2.4× | 2.1× | 2.4× |
+| C zipf | 1.4× | 2.9× | **3.3×** |
+| W uniform | 1.4× | 2.8× | 3.0× |
+| W zipf | 0.5× | **3.8×** | 3.9× |
+| mutex (all workloads) | about 0.2× | | |
+
+- **The machine's limits:** uniform writes stop at about 82 M ops/s (spin from 2 threads, node-level designs from 6)
+  and uniform reads at about 64 M ops/s.
+- **Hyper-threads** (6 → 12) add 10–15% on reads and nothing on uniform writes.
+- **Striped spinlocks get worse with threads on hot keys:** the hottest keys share one stripe lock.
+
+#### Two-level layout vs flat under threads (100M keys, 12 threads)
+
+| | load | A uniform | C uniform | C zipf | W uniform | W zipf |
+|---|---:|---:|---:|---:|---:|---:|
+| spin | 0.99× | 0.95× | 0.95× | 1.00× | 1.00× | 1.00× |
+| nodelock | 0.97× | 1.00× | 0.98× | 0.97× | 0.99× | 0.99× |
+| seqlock | 0.99× | 0.97× | 0.94× | 0.93× | 0.99× | 1.00× |
+
+Under threads, the two-level layout costs **0–7%**. Parallel loads that create rows cost 1–3%.
+
+#### Tail latency (100M keys, 12 threads, flat)
+
+| design | uniform get p99 | zipf get p99 | zipf update p99 | zipf update p99.9 |
+|---|---:|---:|---:|---:|
+| mutex | 13.6 µs | 11.0 µs | 10.0 µs | 15.8 µs |
+| spin | 777 ns | 2.6 µs | 4.5 µs | 12.6 µs |
+| nodelock | 1.0 µs | 754 ns | 518 ns | 799 ns |
+| seqlock | 809 ns | 621 ns | 523 ns | 814 ns |
+
+#### The seqlock write fix (fetch_or): partly works
+
+| W zipf, 12 threads | 1M | 10M | 25M | 50M | 100M |
+|---|---:|---:|---:|---:|---:|
+| seqlock | 88 | 119 | 153 | 169 | 164 |
+| nodelock | 156 | 196 | 184 | 175 | 169 |
+
+- **At 50M–100M keys seqlock is within 3% of nodelock on hot writes.**
+- **At 1M–10M keys, where zipf writes concentrate on very few keys, it is still about 40% behind.** The likely cause
+  is waiting writers retrying together, so the hot line bounces between cores. A ticket or queue lock for writers is
+  the next idea; not tested.
+
+#### What experiment 6 shows
+
+1. **The O(1) design holds under threads:** uniform throughput is the same at 10M and 100M keys.
+2. **Correct under heavy concurrency** at 100M keys, including racing row creation.
+3. **The two-level layout costs 0–7% with threads** (vs +30–40% per get single-threaded).
+4. **seqlock is the best general design:** lock-free reads, 3.3× scaling on hot reads, p99 under 1 µs.
+5. **Limits:**
+   - on 6 cores, uniform access is capped by DRAM (about 64 M reads / 82 M writes per second);
+   - hot-key throughput falls as the key range grows;
+   - seqlock hot writes on small key ranges lag nodelock;
+   - only one machine, with 6 cores.
+
+### 12.7 Experiment 7: per-key versions and range scans (built, not run on Linux yet)
+
+The two features a real LSM memtable needs and the DAT did not have.
+
+#### Versions (`include/dat/dat_mv.h`, `src/dat/dat_mv.c`)
+
+Modelled on JellyFish (per-key version chains), on the same 64 B nodes as experiment 6:
+
+| | |
+|---|---|
+| Newest version | inline in the node, as before: a get or scan of the newest data still reads one cache line |
+| Older versions | 64 B records in a version arena, linked newest → oldest from the node's `older` field (the old `reserved_` 8 bytes; the node is still 64 B) |
+| Update | under the node's seqlock: copy the current version into a new record, link it, write the new version inline. Two line writes instead of one |
+| Late write (seqno older than the node's) | linked into the chain at its seqno position, so chains are **always sorted**. JellyFish puts it at the head, which can make a snapshot read return the wrong version |
+| Read at snapshot S | seqlock copy of the node; if its seqno ≤ S, done; else walk the chain to the first version ≤ S. Readers never lock or write shared memory |
+| Record allocation | each thread takes 256 records at a time with one atomic add |
+| Garbage collection | `dv_drop_history`: drop all older versions at once, when no thread uses the table (e.g. when no snapshot needs them) |
+
+Records are never freed while threads run, and a record is fully written before it becomes reachable (release
+store), so readers need no locks or hazard pointers.
+
+#### Range scans
+
+- **Flat:** a scan of [a, b) reads nodes a … b−1 in order. Keys are the slots, so a scan is a sequential walk:
+  no search for the start key, no pointer chasing, hardware prefetching works.
+- **Two-level:** rows that were never created are skipped whole (one table entry per 32,768 keys).
+- `dv_scan` returns the live keys at a snapshot (tombstones skipped). Per key the result is exact; across keys it is
+  a consistent cut when every write with seqno ≤ S finished before the scan started (the usual LSM "published
+  sequence" rule).
+- The unversioned table got `dc_scan` too (newest values, no snapshot), so the cost of versions can be measured on
+  scans as well.
+- Skip-list baseline: `sl_scan` (find the start key, then walk level 0).
+
+#### Tests
+
+`tests/test_dat_mv.c`, also under ThreadSanitizer and AddressSanitizer:
+- versions at every snapshot, tombstones, late writes landing in order, depth, scans with limits, resume, snapshots
+  and missing rows, drop_history, arena full, argument errors;
+- 4 writers + 2 snapshot readers + 1 scanner on 64 hot keys (out-of-order seqnos happen): no torn value, nothing
+  newer than the snapshot; afterwards every chain is sorted, holds every write, and a get at 2,000 random
+  snapshots returns exactly the newest write ≤ snapshot;
+- 4 threads racing to create rows, then a full scan.
+
+#### Experiment 7 plan (`build/dat_mvscale`, `scripts/scale/run_mv_scale.sh`)
+
+- Structures: dat-flat, dat-rows (unversioned seqlock), mv-flat, mv-rows, skip list (1 thread, ≤ 10M keys).
+- Keys 1M, 10M, 100M; threads 1, 2, 4, 6, 12.
+- Workloads: load, A (50/50), C (gets), E (95% scans of 100 / 5% updates), S10 / S100 / S1000 (scans only);
+  uniform and zipf.
+- Snapshot-depth sweep at 10M keys: 1–16 versions on 2^20 keys, reads at the newest and the oldest snapshot.
+- Peak planned memory 6.95 GiB (100M keys), within the 9 GiB budget. Details: `SCALE_EXPERIMENTS.md`.
+
+Questions it answers: what versions cost (mv / dat), scan speed in keys/s from 1M to 100M keys under threads, the
+speedup over a skip list for scans, and how snapshot reads degrade with depth.
+
+A smoke run on the Mac (100K–1M keys, 1 and 4 threads) passed every check. Its numbers are not meaningful.
 
 ---
 
@@ -775,8 +947,8 @@ operation.
 **Not ready for a full VLDB research paper.** The reasons:
 - the central idea (VDC placement) is contradicted by the measurements;
 - O(1) comes from direct addressing, which reviewers will call a textbook direct-address table;
-- integer keys only, no versions, scans or engine integration (scale is no longer the gap: 100M keys are measured,
-  section 12.5);
+- integer keys only and no engine integration (scale is no longer the gap: 100M keys are measured, section 12.5;
+  versions and scans are built, section 12.7, but not yet measured);
 - self-written baselines and one machine.
 
 **Viable paths:**
@@ -789,7 +961,8 @@ operation.
    - "an O(1), one-line-per-operation, sorted memtable for dense-key workloads", e.g. block stores, where keys are
      block addresses and RASK reports 65–81% of writes come in consecutive runs;
    - the two-level layout (section 12): already measured to 100M keys, O(1) by instruction count, constant time on
-     huge pages, +5 ns per get over flat, 0.8 ns misses;
+     huge pages, +5 ns per get over flat, 0.8 ns misses, and under 12 threads the same throughput at 10M and 100M
+     keys at 0–7% cost over flat;
    - RocksDB or block-store integration with versions;
    - real traces;
    - published baselines on the same machine;
@@ -817,6 +990,10 @@ operation.
 | `results/scale-20261123-202607/analysis.md` | quick scale run after the fix |
 | `results/scale-20261123-203936/analysis.md` | full scale run, base pages (experiments 1, 2, 3, 5) |
 | `results/scale-20261123-210146/analysis.md` | full scale run, huge pages (experiment 4) |
+| `results/mtscale-20261123-212531/analysis.md` | experiment 6, quick run |
+| `results/mtscale-20261123-213545/analysis.md` | experiment 6, full run (threads at 1M–100M keys) |
+| `include/dat/dat_mv.h` | versioned DAT with snapshot reads and range scans (experiment 7) |
+| `bench_mvscale/`, `scripts/scale/run_mv_scale.sh` | experiment 7 driver and runner |
 | `results/*/report_*.md`, `*.csv` | raw reports and data |
 
 Raw data of the Azure VM run was replaced by the physical run. Its numbers are kept only in section 8.1.

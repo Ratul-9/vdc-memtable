@@ -9,6 +9,7 @@
 #   make mtbench       build the multithreaded driver   build/vdc_mtbench
 #   make scale         build the scale experiments      build/dat_scale (10M-100M keys)
 #   make mtscale       build experiment 6               build/dat_mtscale (threads at 1M-100M keys)
+#   make mvscale       build experiment 7               build/dat_mvscale (versions + range scans)
 #   make experiments   build the experiment programs    build/exp_NN_name
 #   make clean         remove build/ and build-debug/
 #
@@ -49,6 +50,10 @@ MTSCALE_SRC := $(wildcard bench_mtscale/*.c)
 MTSCALE_OBJ := $(patsubst %.c,$(BUILD)/%.o,$(MTSCALE_SRC))
 MTSCALE_BIN := $(BUILD)/dat_mtscale
 
+MVSCALE_SRC := $(wildcard bench_mvscale/*.c)
+MVSCALE_OBJ := $(patsubst %.c,$(BUILD)/%.o,$(MVSCALE_SRC))
+MVSCALE_BIN := $(BUILD)/dat_mvscale
+
 MT_SRC   := $(wildcard bench_mt/*.c)
 MT_OBJ   := $(patsubst %.c,$(BUILD)/%.o,$(MT_SRC))
 MT_BIN   := $(BUILD)/vdc_mtbench
@@ -57,11 +62,11 @@ EXP_SRC  := $(wildcard experiments/*/experiment.c)
 EXP_OBJ  := $(patsubst %.c,$(BUILD)/%.o,$(EXP_SRC))
 EXP_BIN  := $(patsubst experiments/%/experiment.c,$(BUILD)/exp_%,$(EXP_SRC))
 
-ALL_OBJ  := $(OBJ) $(TEST_OBJ) $(BASE_OBJ) $(BENCH_OBJ) $(EXP_OBJ) $(MT_OBJ) $(SCALE_OBJ) $(MTSCALE_OBJ)
+ALL_OBJ  := $(OBJ) $(TEST_OBJ) $(BASE_OBJ) $(BENCH_OBJ) $(EXP_OBJ) $(MT_OBJ) $(SCALE_OBJ) $(MTSCALE_OBJ) $(MVSCALE_OBJ)
 
-.PHONY: all lib test debug tsan bench mtbench scale mtscale experiments clean
+.PHONY: all lib test debug tsan bench mtbench scale mtscale mvscale experiments clean
 
-all: lib $(TEST_BIN) bench mtbench scale mtscale experiments
+all: lib $(TEST_BIN) bench mtbench scale mtscale mvscale experiments
 
 lib: $(LIB)
 
@@ -72,8 +77,8 @@ $(BUILD)/%.o: %.c
 	@mkdir -p $(@D)
 	$(CC) $(CFLAGS) $(OPT) -MMD -MP -c $< -o $@
 
-$(TEST_BIN): $(TEST_OBJ) $(LIB)
-	$(CC) $(CFLAGS) $(OPT) $(TEST_OBJ) $(LIB) -o $@ $(LDLIBS)
+$(TEST_BIN): $(TEST_OBJ) $(BASE_OBJ) $(LIB)
+	$(CC) $(CFLAGS) $(OPT) $(TEST_OBJ) $(BASE_OBJ) $(LIB) -o $@ $(LDLIBS)
 
 test: $(TEST_BIN)
 	./$(TEST_BIN)
@@ -98,6 +103,11 @@ mtscale: $(MTSCALE_BIN)
 
 $(MTSCALE_BIN): $(MTSCALE_OBJ) $(BENCH_COMMON_OBJ) $(LIB)
 	$(CC) $(CFLAGS) $(OPT) $(MTSCALE_OBJ) $(BENCH_COMMON_OBJ) $(LIB) -o $@ $(LDLIBS)
+
+mvscale: $(MVSCALE_BIN)
+
+$(MVSCALE_BIN): $(MVSCALE_OBJ) $(BENCH_COMMON_OBJ) $(BASE_OBJ) $(LIB)
+	$(CC) $(CFLAGS) $(OPT) $(MVSCALE_OBJ) $(BENCH_COMMON_OBJ) $(BASE_OBJ) $(LIB) -o $@ $(LDLIBS)
 
 experiments: $(EXP_BIN)
 

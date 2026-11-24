@@ -88,5 +88,11 @@ void sl_clear(SkipList *sl);
 int sl_put(SkipList *sl, uint32_t key, const void *value, size_t len);
 int sl_get(const SkipList *sl, uint32_t key, const void **value, uint32_t *len);
 int sl_delete(SkipList *sl, uint32_t key);
+/*
+ * Range scan: live keys in [start, end), ascending, at most limit. keys[i] and
+ * values[i] (pointer into the node, may be NULL arrays) are filled. Returns the count.
+ */
+size_t sl_scan(const SkipList *sl, uint32_t start, uint32_t end, size_t limit, uint32_t *keys,
+               const void **values);
 
 #endif /* VDC_BASELINES_H */

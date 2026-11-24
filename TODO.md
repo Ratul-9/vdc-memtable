@@ -59,7 +59,11 @@ Legend: [x] done | [ ] to do | (P#) = problem number in `memory and cache relate
 - [x] scripts/scale/run_scale.sh (one process at a time, huge-page pool reserved and released with trap) + summarize_scale.py; SCALE_EXPERIMENTS.md; unit tests (test_dat)
 - [ ] Run on the 16 GB Linux machine: `scripts/scale/run_scale.sh --quick`, then the full run
 - [x] Experiment 6 built: thread-safe DAT (dat_conc.h: flat / rows, mutex / spin / rwlock / nodelock / seqlock with fetch_or claim, CAS row creation), dat_mtscale, scripts/scale/run_mt_scale.sh, tests (TSan clean)
-- [ ] Run experiment 6 on Linux: `scripts/scale/run_mt_scale.sh --quick`, then the full run
+- [x] Experiment 6 run (quick + full, mtscale-20261123-212531 / -213545): throughput flat 10M→100M under threads, rows-2M 0–7% cost, seqlock best overall
+- [ ] seqlock hot writes at 1M–10M keys lag nodelock by ~40%: try a ticket / queue lock or back-off for writers
+- [x] Per-key versions (dat_mv.h: newest inline, sorted version chains, late writes in order, snapshot reads, drop_history) + range scans (dv_scan, dc_scan, sl_scan baseline); tests incl. TSan / ASan
+- [x] Experiment 7 built: dat_mvscale (cost of versions, scans vs skip list, snapshot depth), scripts/scale/run_mv_scale.sh; Mac smoke run passes
+- [ ] Run experiment 7 on the Linux machine: `scripts/scale/run_mv_scale.sh --quick`, then the full run
 
 ## To do
 
@@ -71,7 +75,7 @@ Legend: [x] done | [ ] to do | (P#) = problem number in `memory and cache relate
 
 ### Code: core
 - [ ] Decide the real arena capacity (currently a 16 MiB placeholder, `MEMTABLE_DEFAULT_ARENA_BYTES`); garbage left by shrinking/replaced external values is only reclaimed on reset (P8)
-- [ ] Version policy: memtable keeps newest only; decide if snapshots are ever needed (P7, T7)
+- [x] Version policy: per-key version chains with snapshots (dat_mv.h, experiment 7) (P7, T7)
 - [ ] Decide whether the stored key (3 B) stays, given slot -> key is invertible
 - [ ] Decide what to use the 5 reserved bytes for (or leave empty)
 - [ ] Wire the bitmap into the memtable when flush / ordered iteration is built (P19)

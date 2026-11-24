@@ -2,6 +2,7 @@
  * Thread-safe DAT memtables (dat_conc.h): every layout x lock mode.
  *   - 4 threads insert interleaved keys, so they race to create the same rows;
  *     afterwards every key is present and the arena holds exactly the rows needed.
+ *   - a full scan returns every key once, in order; limits, tombstones;
  *   - 4 writers + 2 readers on 64 hot keys: no torn or misrouted value is ever read.
  */
 #include <pthread.h>
@@ -95,6 +96,14 @@ static int one(DcLayout layout, DcMode mode)
         CHECK(dc_get(&c, k, w, &len, NULL) == MT_OK && value_ok(w, k));
     }
 
+    { /* scan everything: every key once, ascending */
+        static DatKV kv[KEYS];
+        uint32_t next = 0;
+        CHECK(dc_scan(&c, 0, (uint32_t)DAT_DOMAIN, KEYS, kv, &next) == KEYS && next == KEYS); /* limit reached: resume at KEYS */
+        for (uint32_t k = 0; k < KEYS; k++)
+            CHECK(kv[k].key == k && kv[k].len == 32 && value_ok((const uint64_t *)(const void *)kv[k].value, k));
+        CHECK(dc_scan(&c, 100, 200, 10, kv, &next) == 10 && next == 110 && kv[9].key == 109);
+    }
     for (int i = 0; i < TH + 2; i++) {
         a[i] = (Arg){&c, i, i < TH, 0, &stop};
         pthread_create(&t[i], NULL, hot, &a[i]);
@@ -109,6 +118,10 @@ static int one(DcLayout layout, DcMode mode)
 
     CHECK(dc_delete(&c, 7, 1) == MT_OK);
     CHECK(dc_get(&c, 7, w, NULL, NULL) == MT_DELETED);
+    {
+        DatKV kv[16];
+        CHECK(dc_scan(&c, 0, 10, 16, kv, NULL) == 9 && kv[6].key == 6 && kv[7].key == 8); /* tombstone skipped */
+    }
     CHECK(dc_put(&c, 1, w, 33, 0) == MT_ERR_ARG);
     if (layout == DC_FLAT) {
         CHECK(dc_put(&c, (uint32_t)c.flat.capacity, w, 8, 0) == MT_ERR_KEY_RANGE);

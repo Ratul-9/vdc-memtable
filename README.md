@@ -121,6 +121,12 @@ Experiment 6 (threads at every key count, 1M–100M keys):
 scripts/scale/run_mt_scale.sh --quick
 ```
 
+Experiment 7 (per-key versions and range scans, with threads, 1M–100M keys):
+
+```bash
+scripts/scale/run_mv_scale.sh --quick
+```
+
 ## What is measured
 
 **Patterns**: `seq` = keys 0..N-1 ascending; `dense_rand` = keys 0..N-1 in random order; `rand` = N random keys from

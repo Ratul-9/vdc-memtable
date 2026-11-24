@@ -249,3 +249,70 @@ program stops above 10 GiB. `./build/dat_mtscale --plan` prints the plan.
 - scaling with threads at 100M;
 - rows-2M vs flat;
 - p99 / p99.9 latency.
+
+## Experiment 7: per-key versions and range scans
+
+**Questions:**
+- What do per-key versions (as in JellyFish) cost over the unversioned DAT?
+- How fast are range scans under threads, from 1M to 100M keys, and against a skip list?
+- How do snapshot reads slow down as the number of versions per key grows?
+
+```bash
+scripts/scale/run_mv_scale.sh --quick
+```
+
+```bash
+scripts/scale/run_mv_scale.sh
+```
+
+Output: `results/mvscale-<timestamp>/report_mvscale.md` and `results_mvscale.csv`. The full run should take very
+roughly 20–40 minutes (estimate).
+
+| What | Default |
+|---|---|
+| Program | `build/dat_mvscale` (`bench_mvscale/`); versioned table in `include/dat/dat_mv.h`, scans of the unversioned one in `dat_conc.h` (`dc_scan`) |
+| Structures | dat-flat, dat-rows (seqlock, unversioned), mv-flat, mv-rows (versioned), skiplist (1 thread, up to 10M keys) |
+| Keys | 1M, 10M, 100M (dense keys 0 .. N−1) |
+| Threads | 1, 2, 4, 6, 12 |
+| Workloads | load; A 50% get / 50% update; C 100% get; E 95% scans of 100 keys / 5% updates; S10, S100, S1000 = 100% scans of 10 / 100 / 1,000 keys |
+| Key distributions | uniform, zipf θ 0.99 (for scans: the start key) |
+| Per cell | 500K operations per thread for gets and updates; scans: 500K × 10 / length (at least 1,000), E: 50K; 3 repetitions |
+| Sequence numbers | one global counter, 64 at a time per thread, so concurrent updates of one key arrive out of order (as in an LSM) |
+| Snapshot-depth sweep | at 10M keys, 12 threads: the first 2^20 keys get 1, 2, 4, 8, 16 versions; gets and 100-key scans at the newest version and at the oldest snapshot |
+| Pages | 2 MiB hugetlb (the script asks the program how many it needs and reserves that) |
+
+**How the versioned table works (`dat_mv.h`):**
+- the newest version of each key stays in its 64 B node, so a get or scan of the newest data reads the same single
+  cache line as the unversioned table;
+- an update copies the current version into a 64 B record in a version arena and links it (newest → oldest) from
+  the node;
+- a late write (smaller sequence number than the current one) is linked into the chain at its sequence-number
+  position, so chains are always sorted (JellyFish puts it at the head);
+- a read at snapshot S returns the newest version with seqno ≤ S; readers never lock or write shared memory;
+- old versions are dropped in bulk (`dv_drop_history`) when no thread uses the table (here: before each
+  repetition of a write workload, untimed).
+
+**Correctness checks:**
+- every get returns a whole value with its own key;
+- every scan returns exactly the expected keys, in order (values checked on 1 of every 16 scans);
+- after every load, all N keys are present;
+- after every write workload, every version chain is sorted by sequence number;
+- in the depth sweep, a read at the oldest snapshot returns exactly the oldest version.
+
+**What is in memory** (100M keys, the largest structure): at most 6.95 GiB planned.
+
+| Part | Size |
+|---|---:|
+| Nodes (mv-flat) | 5.96 GiB of huge pages |
+| Version arena (one repetition of A at 12 threads: 3.1M records × 64 B) | 0.19 GiB |
+| Insertion order for the load (N × 4 B) | 0.37 GiB |
+| Operation lists of the current thread count | up to 0.18 GiB |
+| Program | 0.25 GiB |
+
+At 10M keys the version arena is 0.94 GiB, for the depth sweep (2^20 keys × 15 older versions). As before, the
+memory is planned first, one structure exists at a time, and the program stops above 10 GiB.
+`./build/dat_mvscale --plan` prints the plan.
+
+**Report tables:** checks; all structures at 100M keys and 12 threads; **cost of versions** (mv / dat); **versus the
+skip list** (1 thread); throughput vs key count; scaling with threads; p99 latency; **snapshot reads vs depth**;
+version memory.

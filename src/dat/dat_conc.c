@@ -3,6 +3,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "dat_internal.h"
+
 static const char *const mode_names[DC_MODE_COUNT] = {"mutex", "spin", "rwlock", "nodelock", "seqlock"};
 
 const char *dc_mode_name(DcMode m) { return (m >= 0 && m < DC_MODE_COUNT) ? mode_names[m] : "?"; }
@@ -54,62 +56,7 @@ static inline int dn_result(const DnSnap *s, void *out, uint32_t *len, uint64_t 
     return MT_OK;
 }
 
-/* ---------------- locks ---------------- */
-
-static inline void spin_lock(uint32_t *w)
-{
-    for (;;) {
-        if (__atomic_load_n(w, __ATOMIC_RELAXED) == 0 && __atomic_exchange_n(w, 1u, __ATOMIC_ACQUIRE) == 0)
-            return;
-        vdc_cpu_relax();
-    }
-}
-static inline void spin_unlock(uint32_t *w) { __atomic_store_n(w, 0u, __ATOMIC_RELEASE); }
-
-#define RW_WRITER 0x80000000u
-static inline void rw_read_lock(uint32_t *w)
-{
-    for (;;) {
-        uint32_t v = __atomic_load_n(w, __ATOMIC_RELAXED);
-        if (!(v & RW_WRITER) && __atomic_compare_exchange_n(w, &v, v + 1, 1, __ATOMIC_ACQUIRE, __ATOMIC_RELAXED))
-            return;
-        vdc_cpu_relax();
-    }
-}
-static inline void rw_read_unlock(uint32_t *w) { __atomic_fetch_sub(w, 1u, __ATOMIC_RELEASE); }
-static inline void rw_write_lock(uint32_t *w)
-{
-    for (;;) {
-        uint32_t v = 0;
-        if (__atomic_compare_exchange_n(w, &v, RW_WRITER, 1, __ATOMIC_ACQUIRE, __ATOMIC_RELAXED))
-            return;
-        vdc_cpu_relax();
-    }
-}
-static inline void rw_write_unlock(uint32_t *w) { __atomic_store_n(w, 0u, __ATOMIC_RELEASE); }
-
-static inline void byte_lock(uint8_t *b)
-{
-    for (;;) {
-        if (__atomic_load_n(b, __ATOMIC_RELAXED) == 0 && __atomic_exchange_n(b, (uint8_t)1, __ATOMIC_ACQUIRE) == 0)
-            return;
-        vdc_cpu_relax();
-    }
-}
-static inline void byte_unlock(uint8_t *b) { __atomic_store_n(b, (uint8_t)0, __ATOMIC_RELEASE); }
-
-/* Seqlock writer: one fetch_or claims the node when the version was even (no CAS loop). */
-static inline uint32_t seq_claim(DatNode *n)
-{
-    for (;;) {
-        const uint32_t v = __atomic_fetch_or(&n->version, 1u, __ATOMIC_ACQUIRE);
-        if (!(v & 1u))
-            return v;
-        while (__atomic_load_n(&n->version, __ATOMIC_RELAXED) & 1u)
-            vdc_cpu_relax();
-    }
-}
-static inline void seq_release(DatNode *n, uint32_t v) { __atomic_store_n(&n->version, v + 2, __ATOMIC_RELEASE); }
+/* ---------------- seqlock reader (node snapshot) ---------------- */
 
 static inline void seq_read(const DatNode *n, DnSnap *s)
 {
@@ -127,60 +74,51 @@ static inline void seq_read(const DatNode *n, DnSnap *s)
     }
 }
 
-/* ---------------- node lookup ---------------- */
-
 static inline int key_in_range(const DatConc *c, uint32_t key)
 {
-    if (c->layout == DC_FLAT)
-        return key < c->flat.capacity;
-    return ((uint64_t)key >> c->rows.domain_bits) == 0;
-}
-
-/* Node of key for reading; NULL if its row does not exist (yet). */
-static inline DatNode *node_for_read(const DatConc *c, uint32_t key)
-{
-    if (c->layout == DC_FLAT)
-        return &c->flat.nodes[key];
-    const uint32_t e = __atomic_load_n(&c->rows.table[key >> c->rows.row_bits], __ATOMIC_ACQUIRE);
-    if (e == 0 || e == DC_ROW_BUSY)
-        return NULL;
-    return dat_rows_node(&c->rows, e, key);
-}
-
-/* Node of key for writing; creates the row if needed. NULL = arena full. */
-static DatNode *node_for_write(DatConc *c, uint32_t key)
-{
-    if (c->layout == DC_FLAT)
-        return &c->flat.nodes[key];
-    DatRows *r = &c->rows;
-    uint32_t *slot = &r->table[key >> r->row_bits];
-    uint32_t e = __atomic_load_n(slot, __ATOMIC_ACQUIRE);
-    while (e == 0 || e == DC_ROW_BUSY) {
-        if (e == 0) {
-            uint32_t expected = 0;
-            if (__atomic_compare_exchange_n(slot, &expected, DC_ROW_BUSY, 0, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE)) {
-                const uint64_t idx = __atomic_fetch_add(&r->used_rows, 1, __ATOMIC_RELAXED);
-                if (idx >= r->arena_rows) {
-                    __atomic_fetch_sub(&r->used_rows, 1, __ATOMIC_RELAXED);
-                    __atomic_store_n(slot, 0u, __ATOMIC_RELEASE);
-                    return NULL;
-                }
-                e = (uint32_t)(idx + 1);
-                __atomic_store_n(slot, e, __ATOMIC_RELEASE); /* the arena row is already zero */
-                break;
-            }
-            e = expected;
-            continue;
-        }
-        vdc_cpu_relax(); /* another thread is creating this row */
-        e = __atomic_load_n(slot, __ATOMIC_ACQUIRE);
-    }
-    return dat_rows_node(r, e, key);
+    return dat_key_in_range(c->layout == DC_ROWS, &c->flat, &c->rows, key);
 }
 
 static inline uint32_t *stripe_of(DatConc *c, uint32_t key)
 {
     return &c->stripes[(key >> DC_STRIPE_SHIFT) & (DC_STRIPES - 1)].word;
+}
+
+/* Copy of node n (key's node) under the memtable's read synchronisation. */
+static inline int read_node(DatConc *c, const DatNode *n, uint32_t key, DnSnap *s)
+{
+    switch (c->mode) {
+    case DC_MUTEX:
+        pthread_mutex_lock(&c->mutex);
+        dn_snap(n, s);
+        pthread_mutex_unlock(&c->mutex);
+        break;
+    case DC_SPIN: {
+        uint32_t *w = stripe_of(c, key);
+        dat_spin_lock(w);
+        dn_snap(n, s);
+        dat_spin_unlock(w);
+        break;
+    }
+    case DC_RWLOCK: {
+        uint32_t *w = stripe_of(c, key);
+        dat_rw_read_lock(w);
+        dn_snap(n, s);
+        dat_rw_read_unlock(w);
+        break;
+    }
+    case DC_NODELOCK:
+        dat_byte_lock((uint8_t *)&((DatNode *)n)->lock);
+        dn_snap(n, s);
+        dat_byte_unlock((uint8_t *)&((DatNode *)n)->lock);
+        break;
+    case DC_SEQLOCK:
+        seq_read(n, s);
+        break;
+    default:
+        return MT_ERR_ARG;
+    }
+    return MT_OK;
 }
 
 /* ---------------- public API ---------------- */
@@ -256,7 +194,7 @@ static int dc_write(DatConc *c, uint32_t key, const void *value, size_t len, uin
 {
     if (!key_in_range(c, key))
         return MT_ERR_KEY_RANGE;
-    DatNode *n = node_for_write(c, key);
+    DatNode *n = dat_node_for_write(c->layout == DC_ROWS, &c->flat, &c->rows, key);
     if (n == NULL)
         return MT_ERR_ARENA_FULL;
 
@@ -268,27 +206,27 @@ static int dc_write(DatConc *c, uint32_t key, const void *value, size_t len, uin
         break;
     case DC_SPIN: {
         uint32_t *w = stripe_of(c, key);
-        spin_lock(w);
+        dat_spin_lock(w);
         dn_write(n, key, value, len, seqno, flags);
-        spin_unlock(w);
+        dat_spin_unlock(w);
         break;
     }
     case DC_RWLOCK: {
         uint32_t *w = stripe_of(c, key);
-        rw_write_lock(w);
+        dat_rw_write_lock(w);
         dn_write(n, key, value, len, seqno, flags);
-        rw_write_unlock(w);
+        dat_rw_write_unlock(w);
         break;
     }
     case DC_NODELOCK:
-        byte_lock(&n->lock);
+        dat_byte_lock(&n->lock);
         dn_write(n, key, value, len, seqno, flags);
-        byte_unlock(&n->lock);
+        dat_byte_unlock(&n->lock);
         break;
     case DC_SEQLOCK: {
-        const uint32_t v = seq_claim(n);
+        const uint32_t v = dat_seq_claim(n);
         dn_write(n, key, value, len, seqno, flags);
-        seq_release(n, v);
+        dat_seq_release(n, v);
         break;
     }
     default:
@@ -313,43 +251,74 @@ int dc_get(DatConc *c, uint32_t key, void *out, uint32_t *len, uint64_t *seqno)
 {
     if (!key_in_range(c, key))
         return MT_ERR_KEY_RANGE;
-    const DatNode *n = node_for_read(c, key);
+    const DatNode *n = dat_node_for_read(c->layout == DC_ROWS, &c->flat, &c->rows, key);
     if (n == NULL)
         return MT_NOT_FOUND;
 
     DnSnap s;
-    switch (c->mode) {
-    case DC_MUTEX:
-        pthread_mutex_lock(&c->mutex);
-        dn_snap(n, &s);
-        pthread_mutex_unlock(&c->mutex);
-        break;
-    case DC_SPIN: {
-        uint32_t *w = stripe_of(c, key);
-        spin_lock(w);
-        dn_snap(n, &s);
-        spin_unlock(w);
-        break;
-    }
-    case DC_RWLOCK: {
-        uint32_t *w = stripe_of(c, key);
-        rw_read_lock(w);
-        dn_snap(n, &s);
-        rw_read_unlock(w);
-        break;
-    }
-    case DC_NODELOCK:
-        byte_lock((uint8_t *)&((DatNode *)n)->lock);
-        dn_snap(n, &s);
-        byte_unlock((uint8_t *)&((DatNode *)n)->lock);
-        break;
-    case DC_SEQLOCK:
-        seq_read(n, &s);
-        break;
-    default:
+    if (read_node(c, n, key, &s) != MT_OK)
         return MT_ERR_ARG;
-    }
     return dn_result(&s, out, len, seqno);
+}
+
+/* Scan nodes[0 .. cnt-1] holding keys first .. first+cnt-1. */
+static inline size_t scan_nodes(DatConc *c, const DatNode *nodes, uint32_t first, uint64_t cnt, DatKV *out,
+                                size_t room, uint64_t *done)
+{
+    size_t got = 0;
+    uint64_t i = 0;
+    for (; i < cnt && got < room; i++) {
+        const DatNode *n = &nodes[i];
+        if (!(__atomic_load_n(&n->flags, __ATOMIC_RELAXED) & DAT_F_OCCUPIED))
+            continue; /* empty slot */
+        const uint32_t key = first + (uint32_t)i;
+        DnSnap s;
+        read_node(c, n, key, &s);
+        DatKV *kv = &out[got];
+        if (dn_result(&s, kv->value, &kv->len, &kv->seqno) == MT_OK) {
+            kv->key = key;
+            got++;
+        }
+    }
+    *done = i;
+    return got;
+}
+
+size_t dc_scan(DatConc *c, uint32_t start, uint32_t end, size_t limit, DatKV *out, uint32_t *next)
+{
+    size_t got = 0;
+    uint64_t k = start, hi = end;
+    if (c->layout == DC_FLAT) {
+        if (hi > c->flat.capacity)
+            hi = c->flat.capacity;
+        if (k < hi && limit > 0) {
+            uint64_t done;
+            got = scan_nodes(c, &c->flat.nodes[k], (uint32_t)k, hi - k, out, limit, &done);
+            k += done;
+        }
+    } else {
+        const DatRows *r = &c->rows;
+        const uint64_t dom = (uint64_t)1 << r->domain_bits;
+        if (hi > dom)
+            hi = dom;
+        while (k < hi && got < limit) {
+            const uint64_t row = k >> r->row_bits;
+            const uint64_t row_end = (row + 1) << r->row_bits;
+            const uint64_t stop = row_end < hi ? row_end : hi;
+            const uint32_t e = __atomic_load_n(&r->table[row], __ATOMIC_ACQUIRE);
+            if (e == 0 || e == DAT_ROW_BUSY) {
+                k = stop; /* no row: skip all its keys */
+                continue;
+            }
+            uint64_t done;
+            got += scan_nodes(c, dat_rows_node(r, e, (uint32_t)k), (uint32_t)k, stop - k, out + got, limit - got,
+                              &done);
+            k += done;
+        }
+    }
+    if (next != NULL)
+        *next = k < hi ? (uint32_t)k : end;
+    return got;
 }
 
 uint64_t dc_count(const DatConc *c)
